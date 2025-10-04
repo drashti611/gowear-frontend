@@ -1,0 +1,98 @@
+/* ===========================
+   Admin Category Page CSS
+=========================== */
+
+/* Dark Blue Theme */
+.text-sidebar {
+  color: #1e3a8a;
+}
+
+.btn-sidebar {
+  background-color: #1e3a8a;
+  color: white;
+  border: none;
+  transition: 0.3s;
+}
+
+.btn-sidebar:hover {
+  background-color: #374ac0;
+  color: white;
+  transform: translateY(-1px);
+}
+
+.category-card {
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor: pointer;
+  border-radius: 8px;
+}
+
+.category-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.form-control:focus {
+  border-color: #1e3a8a;
+  box-shadow: 0 0 8px rgba(30, 58, 138, 0.5);
+  outline: none;
+}
+
+/* Modal header dark blue */
+.bg-sidebar {
+  background-color: #1e3a8a !important;
+  color: white;
+  font-weight: bold;
+}
+
+/* Modal buttons */
+.modal-footer .btn {
+  min-width: 80px;
+  border-radius: 6px;
+}
+
+/* Search input */
+input[type="text"].form-control {
+  border-radius: 6px;
+  padding: 8px 12px;
+  border: 1px solid #ccc;
+}
+
+/* Toast notification */
+.toast {
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-weight: 500;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .container {
+    padding: 15px !important;
+  }
+  .row.g-3 > .col-md-4 {
+    flex: 0 0 50%;
+    max-width: 50%;
+  }
+}
+
+@media (max-width: 576px) {
+  .row.g-3 > .col-md-4 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .d-flex.mb-3 {
+    flex-direction: column;
+  }
+
+  .d-flex.mb-3 .form-control,
+  .d-flex.mb-3 .btn-sidebar {
+    width: 100%;
+    margin-bottom: 10px;
+  }
+
+  .mb-4 input[type="text"] {
+    width: 100%;
+  }
+}

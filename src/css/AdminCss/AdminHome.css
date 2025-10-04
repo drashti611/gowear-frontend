@@ -1,0 +1,129 @@
+/* Sidebar general */
+.admin-container .sidebar {
+  width: 250px;
+  transition: width 0.3s;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  overflow: hidden;
+  position: relative;
+  background-color: #0b1a4a; /* Dark blue background */
+}
+
+.admin-container .sidebar.collapsed {
+  width: 60px;
+}
+
+/* Menu links */
+.menu-link {
+  color: white;
+  text-decoration: none;
+  position: relative;
+  transition: background 0.2s;
+}
+
+.menu-link:hover {
+  background: #1a2a6a; /* Slightly lighter blue on hover */
+}
+
+/* Active menu item */
+.menu-link.active {
+  background: #2a3a8a; /* Highlighted dark blue */
+}
+
+/* Tooltip for collapsed sidebar */
+.menu-link .tooltip,
+.logout-btn .tooltip {
+  position: absolute;
+  left: 70px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: #0b1a4a; /* Dark blue tooltip background */
+  padding: 5px 10px;
+  border-radius: 5px;
+  white-space: nowrap;
+  display: none;
+  z-index: 10;
+}
+
+/* Tooltip arrow */
+.menu-link .tooltip::after,
+.logout-btn .tooltip::after {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  transform: translateY(-50%);
+  border-width: 5px;
+  border-style: solid;
+  border-color: transparent #0b1a4a transparent transparent;
+}
+
+.menu-link:hover .tooltip,
+.logout-btn:hover .tooltip {
+  display: block;
+}
+
+/* Sidebar header */
+.sidebar-header h5 {
+  color: white;
+}
+
+/* Logout button */
+.logout-btn {
+  background-color: #e53e3e; /* Red button */
+  border: none;
+  cursor: pointer;
+    border-radius: 8px; /* added */
+
+}
+
+.logout-btn:hover {
+  background-color: #c53030;
+}
+/* Menu items container */
+.menu-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* space between menu items */
+  padding-left: 10px;
+  padding-right: 10px;
+  margin-top: 10px;
+}
+
+/* Each menu link */
+.menu-link {
+  color: white;
+  text-decoration: none;
+  position: relative;
+  transition: background 0.2s, border-radius 0.3s;
+  font-weight: 500;
+  border-radius: 8px; /* already added */
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+}
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .admin-container .sidebar {
+    position: fixed;
+    left: -250px; /* hide sidebar by default */
+    z-index: 1050; /* above content */
+  }
+
+  .admin-container .sidebar.open {
+    left: 0; /* slide in sidebar */
+  }
+
+  .admin-container .flex-fill {
+    padding-left: 0 !important;
+  }
+}
+
+/* Optional: make toggle button bigger on mobile */
+@media (max-width: 768px) {
+  .sidebar-header button {
+    font-size: 1.2rem;
+    padding: 6px 12px;
+  }
+}

@@ -18,19 +18,25 @@ export default function VerifyEmail() {
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Verify Email</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          type="email"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />{" "}
-        <br />
-        <button type="submit">Send OTP</button>
-      </form>
+    <div className="container d-flex justify-content-center align-items-center vh-100">
+      <div className="card shadow-lg p-4" style={{ maxWidth: "400px", width: "100%" }}>
+        <h3 className="text-center mb-4">Verify Email</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="email" className="form-label">Email</label>
+            <input
+              id="email"
+              type="email"
+              className="form-control"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+          <button type="submit" className="btn btn-primary w-100">Send OTP</button>
+        </form>
+      </div>
     </div>
   );
 }

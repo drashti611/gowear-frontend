@@ -1,0 +1,68 @@
+/* Modern E-commerce Register Page */
+
+.container {
+    background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+    height: 100vh;
+}
+
+.card {
+    border-radius: 15px;
+    background-color: #fff;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    padding: 2rem;
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #333;
+}
+
+.form-control {
+    border-radius: 50px;
+    padding: 0.75rem 1rem;
+    border: 1px solid #ccc;
+    transition: all 0.3s;
+}
+
+.form-control:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
+    outline: none;
+}
+
+.btn-success {
+    background-color: #28a745;
+    border: none;
+    border-radius: 50px;
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.btn-success:hover {
+    background-color: #218838;
+    transform: scale(1.03);
+}
+
+.text-center p a {
+    color: #28a745;
+    font-weight: 600;
+    transition: all 0.3s;
+}
+
+.text-center p a:hover {
+    text-decoration: underline;
+    color: #218838;
+}
+
+@media (max-width: 576px) {
+    .card {
+        padding: 1.5rem;
+    }
+}

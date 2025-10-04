@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import API from "../api/axios";
 import jwt_decode from "jwt-decode";
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
@@ -14,6 +15,7 @@ export default function Login() {
     e.preventDefault();
     try {
       const res = await API.post("/auth/login", form);
+
       // Save token
       localStorage.setItem("token", res.data.token);
 
@@ -22,36 +24,62 @@ export default function Login() {
       localStorage.setItem("role", decoded.role);
 
       alert("Login successful!");
-      navigate("/"); // or admin page if role=admin
+
+      // Redirect based on role
+      if (decoded.role === "admin") {
+        navigate("/admin/home"); 
+      } else {
+        navigate("/"); 
+      }
     } catch (err) {
       alert(err.response?.data?.message || "Login failed");
     }
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Login</h2>
-      <form onSubmit={handleSubmit}>
-        <input
-          name="email"
-          type="email"
-          placeholder="Email"
-          value={form.email}
-          onChange={handleChange}
-          required
-        />
-        <br />
-        <input
-          name="password"
-          type="password"
-          placeholder="Password"
-          value={form.password}
-          onChange={handleChange}
-          required
-        />
-        <br />
-        <button type="submit">Login</button>
-      </form>
+    <div className="container d-flex justify-content-center align-items-center vh-100">
+      <div className="card shadow-lg p-4" style={{ maxWidth: "400px", width: "100%" }}>
+        <h3 className="text-center mb-4">Login</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-3">
+            <label htmlFor="email" className="form-label">Email</label>
+            <input
+              name="email"
+              type="email"
+              className="form-control"
+              id="email"
+              placeholder="Enter your email"
+              value={form.email}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+          <div className="mb-3">
+            <label htmlFor="password" className="form-label">Password</label>
+            <input
+              name="password"
+              type="password"
+              className="form-control"
+              id="password"
+              placeholder="Enter your password"
+              value={form.password}
+              onChange={handleChange}
+              required
+            />
+          </div>
+
+           <button type="submit" className="btn btn-success w-100 mb-3">
+            Login
+          </button>
+        </form>
+
+        <div className="text-center">
+          <p className="mb-0">
+            Don't have an account? <Link to="/register">Register here</Link>
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
