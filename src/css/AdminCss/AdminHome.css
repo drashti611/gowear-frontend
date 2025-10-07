@@ -127,3 +127,21 @@
     padding: 6px 12px;
   }
 }
+
+.submenu {
+  transition: all 0.3s ease;
+}
+
+.submenu-link {
+  display: block;
+  color: #ddd;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.submenu-link:hover,
+.submenu-link.active {
+  color: white;
+  background-color: #495057;
+  border-radius: 8px;
+}

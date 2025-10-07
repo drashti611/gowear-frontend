@@ -8,6 +8,8 @@ import VerifyOtp from "./pages/VerifyOtp";
 import AdminCategoryPage from "./pages/Admin/AdminCategoryPage";
 import ProtectedRoute from "./pages/Admin/ProtectedRoute";
 import AdminHome from "./pages/Admin/AdminHome";
+import AdminSubCategories from "./pages/Admin/AdminSubCategories";
+import Brand from "./pages/Admin/Brand";
 
 function App() {
   return (
@@ -33,6 +35,8 @@ function App() {
           {/* Nested routes rendered inside AdminHome Outlet */}
           <Route index element={<div>Welcome Admin 🛍</div>} />
           <Route path="categories" element={<AdminCategoryPage />} />
+          <Route path="subcategories" element={<AdminSubCategories />} />
+          <Route path="brands" element={<Brand />} />
           {/* Add more nested admin pages here */}
         </Route>
       </Routes>

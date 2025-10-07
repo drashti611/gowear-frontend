@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
-import 'bootstrap/dist/css/bootstrap.min.css';
-import '../css/Navbar.css';
+import "bootstrap/dist/css/bootstrap.min.css";
+import "../css/Navbar.css";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -60,7 +60,10 @@ export default function Navbar() {
     <nav className="navbar navbar-expand-lg ecommerce-navbar">
       <div className="container">
         {/* Brand */}
-        <span className="navbar-brand ecommerce-brand" onClick={() => navigate(homeLink)}>
+        <span
+          className="navbar-brand ecommerce-brand"
+          onClick={() => navigate(homeLink)}
+        >
           GoWear
         </span>
 
@@ -80,20 +83,22 @@ export default function Navbar() {
         {/* Links */}
         <div className="collapse navbar-collapse" id="navbarNav">
           <ul className="navbar-nav ms-auto align-items-center">
-
             {/* Location display */}
             <li className="nav-item me-3 d-flex align-items-center">
               {city ? (
                 <span className="nav-link" style={{ cursor: "default" }}>
-                  📍 Delivering to {city}
+                  Delivering to {city}
                 </span>
               ) : locationError ? (
-                <span className="nav-link text-danger" style={{ cursor: "default" }}>
+                <span
+                  className="nav-link text-danger"
+                  style={{ cursor: "default" }}
+                >
                   {locationError}
                 </span>
               ) : (
                 <span className="nav-link" style={{ cursor: "default" }}>
-                  ⏳ Detecting location...
+                  Detecting location...
                 </span>
               )}
             </li>
@@ -107,7 +112,6 @@ export default function Navbar() {
               />
             </li>
 
-            
             {/* Cart icon */}
             <li className="nav-item ms-3">
               <span className="cart-icon">
@@ -130,7 +134,6 @@ export default function Navbar() {
                 </button>
               </li>
             )}
-
           </ul>
         </div>
       </div>
