@@ -1,11 +1,18 @@
-/* Modern E-commerce Register Page */
-
+/* Container: slightly shorter than viewport and centered */
 .container {
+    height: 85vh; /* 85% of screen height */
+    display: flex;
+    justify-content: center;
+    align-items: center;
     background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
-    height: 100vh;
 }
 
+/* Card / Form box */
 .card {
+    width: 100%;
+    max-width: 450px;
+    max-height: 90%; /* Prevent form from being too tall */
+    overflow-y: auto; /* Scroll if content exceeds */
     border-radius: 15px;
     background-color: #fff;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
@@ -13,29 +20,33 @@
     transition: transform 0.3s, box-shadow 0.3s;
 }
 
+/* Card hover effect */
 .card:hover {
     transform: translateY(-5px);
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25);
 }
 
+/* Labels */
 .form-label {
     font-weight: 600;
     color: #333;
 }
 
-.form-control {
+/* Input fields */
+.form-control, .form-select {
     border-radius: 50px;
     padding: 0.75rem 1rem;
     border: 1px solid #ccc;
     transition: all 0.3s;
 }
 
-.form-control:focus {
+.form-control:focus, .form-select:focus {
     border-color: #28a745;
     box-shadow: 0 0 8px rgba(40, 167, 69, 0.3);
     outline: none;
 }
 
+/* Buttons */
 .btn-success {
     background-color: #28a745;
     border: none;
@@ -50,6 +61,7 @@
     transform: scale(1.03);
 }
 
+/* Links */
 .text-center p a {
     color: #28a745;
     font-weight: 600;
@@ -61,8 +73,10 @@
     color: #218838;
 }
 
+/* Responsive tweaks */
 @media (max-width: 576px) {
     .card {
         padding: 1.5rem;
+        max-height: 95%; /* Fit small screens */
     }
 }
