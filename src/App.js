@@ -10,6 +10,7 @@ import ProtectedRoute from "./pages/Admin/ProtectedRoute";
 import AdminHome from "./pages/Admin/AdminHome";
 import AdminSubCategories from "./pages/Admin/AdminSubCategories";
 import Brand from "./pages/Admin/Brand";
+import AdminProductPage from "./pages/Admin/AdminProductPage";
 
 function App() {
   return (
@@ -37,6 +38,8 @@ function App() {
           <Route path="categories" element={<AdminCategoryPage />} />
           <Route path="subcategories" element={<AdminSubCategories />} />
           <Route path="brands" element={<Brand />} />
+          <Route path="products" element={<AdminProductPage />} /> 
+
           {/* Add more nested admin pages here */}
         </Route>
       </Routes>
