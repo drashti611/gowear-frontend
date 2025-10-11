@@ -120,6 +120,14 @@ export default function AdminProductPage() {
     return min === max ? `₹${min}` : `₹${min} - ₹${max}`;
   };
 
+  const getTotalStock = (product) => {
+    if (!product.variants || product.variants.length === 0) return 0;
+    return product.variants.reduce(
+      (total, v) => total + v.sizes.reduce((sum, s) => sum + (s.stock || 0), 0),
+      0
+    );
+  };
+
   // Add / Update product
   const handleSubmit = async () => {
     try {
@@ -254,6 +262,7 @@ export default function AdminProductPage() {
               <th>Name</th>
               <th>Category</th>
               <th>Price</th>
+              <th>Total Stock</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -281,6 +290,10 @@ export default function AdminProductPage() {
                 <td>{p.categoryId?.name || "No Category"}</td>
                 <td>{getPriceDisplay(p)}</td>
                 <td>
+                  {getTotalStock(p)}
+                  {getTotalStock(p) < 5 && <span className="text-danger ms-2">Low Stock!</span>}
+                </td>
+                <td>
                   <button className="btn btn-outline-warning btn-sm me-1" onClick={() => handleEdit(p)}>
                     <FaEdit />
                   </button>
@@ -292,7 +305,7 @@ export default function AdminProductPage() {
             ))}
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={6} className="text-center text-muted">
+                <td colSpan={7} className="text-center text-muted">
                   No products found.
                 </td>
               </tr>
@@ -333,7 +346,6 @@ export default function AdminProductPage() {
                         onChange={(e) => setProductData({ ...productData, name: e.target.value })}
                         title="Enter the product name"
                       />
-                      <small className="form-text text-muted">Enter the product name, e.g., "Leather Jacket"</small>
                     </div>
 
                     {/* Description */}
@@ -345,7 +357,6 @@ export default function AdminProductPage() {
                         onChange={(e) => setProductData({ ...productData, description: e.target.value })}
                         title="Enter a short description"
                       ></textarea>
-                      <small className="form-text text-muted">Enter a short description of the product</small>
                     </div>
 
                     {/* Category */}
@@ -354,7 +365,6 @@ export default function AdminProductPage() {
                         className="form-control"
                         value={productData.categoryId || ""}
                         onChange={(e) => setProductData({ ...productData, categoryId: e.target.value })}
-                        title="Select category"
                       >
                         <option value="">Select Category</option>
                         {categories.map((c) => (
@@ -363,7 +373,6 @@ export default function AdminProductPage() {
                           </option>
                         ))}
                       </select>
-                      <small className="form-text text-muted">Select the category for this product</small>
                     </div>
 
                     {/* SubCategory */}
@@ -372,7 +381,6 @@ export default function AdminProductPage() {
                         className="form-control"
                         value={productData.subCategoryId || ""}
                         onChange={(e) => setProductData({ ...productData, subCategoryId: e.target.value })}
-                        title="Select subcategory"
                       >
                         <option value="">Select SubCategory</option>
                         {subCategories.map((s) => (
@@ -381,7 +389,6 @@ export default function AdminProductPage() {
                           </option>
                         ))}
                       </select>
-                      <small className="form-text text-muted">Select a subcategory</small>
                     </div>
 
                     {/* Brand */}
@@ -390,7 +397,6 @@ export default function AdminProductPage() {
                         className="form-control"
                         value={productData.brandId || ""}
                         onChange={(e) => setProductData({ ...productData, brandId: e.target.value })}
-                        title="Select brand"
                       >
                         <option value="">Select Brand</option>
                         {brands.map((b) => (
@@ -399,7 +405,6 @@ export default function AdminProductPage() {
                           </option>
                         ))}
                       </select>
-                      <small className="form-text text-muted">Select the brand</small>
                     </div>
 
                     {/* Discount */}
@@ -410,9 +415,7 @@ export default function AdminProductPage() {
                         placeholder="Discount %"
                         value={productData.discount || 0}
                         onChange={(e) => setProductData({ ...productData, discount: e.target.value })}
-                        title="Enter discount in percentage"
                       />
-                      <small className="form-text text-muted">Enter discount in %, e.g., 10</small>
                     </div>
 
                     {/* Images */}
@@ -422,9 +425,7 @@ export default function AdminProductPage() {
                         className="form-control"
                         multiple
                         onChange={(e) => setProductData({ ...productData, images: Array.from(e.target.files) })}
-                        title="Upload product images"
                       />
-                      <small className="form-text text-muted">Upload multiple images (JPG/PNG)</small>
                     </div>
 
                     {/* Variants */}
@@ -442,10 +443,7 @@ export default function AdminProductPage() {
                               newVariants[vi].color = e.target.value;
                               setProductData({ ...productData, variants: newVariants });
                             }}
-                            title="Enter color name"
                           />
-                          <small className="form-text text-muted">Enter color name, e.g., Red</small>
-
                           {v.sizes.map((s, si) => (
                             <div key={si} className="d-flex gap-1 mb-1">
                               <input
@@ -454,15 +452,13 @@ export default function AdminProductPage() {
                                 className="form-control"
                                 value={s.size || ""}
                                 onChange={(e) => handleSizeChange(vi, si, "size", e.target.value)}
-                                title="Enter size, e.g., M, L"
                               />
                               <input
                                 type="number"
                                 placeholder="Stock"
-                                className="form-control"
+                                className={`form-control ${s.stock < 5 ? "border-danger" : ""}`}
                                 value={s.stock || ""}
                                 onChange={(e) => handleSizeChange(vi, si, "stock", e.target.value)}
-                                title="Enter stock available"
                               />
                               <input
                                 type="number"
@@ -470,7 +466,6 @@ export default function AdminProductPage() {
                                 className="form-control"
                                 value={s.price || ""}
                                 onChange={(e) => handleSizeChange(vi, si, "price", e.target.value)}
-                                title="Enter price in ₹"
                               />
                               <button type="button" className="btn btn-danger btn-sm" onClick={() => removeSize(vi, si)}>
                                 Remove Size
