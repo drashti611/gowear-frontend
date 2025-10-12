@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import API from "../../api/axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/AdminCss/AdminCategoryPage.css";
-import { FaEdit, FaTrash } from "react-icons/fa"; // <-- React Icons
+import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
 
 export default function AdminCategoryPage() {
   const [categories, setCategories] = useState([]);
@@ -15,6 +15,9 @@ export default function AdminCategoryPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
+  const [images, setImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [imagesToRemove, setImagesToRemove] = useState([]);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -39,19 +42,52 @@ export default function AdminCategoryPage() {
     setFilteredCategories(filtered);
   }, [searchTerm, categories]);
 
+  // Image handling
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    setImages([...images, ...files]);
+  };
+
+  const removeNewImage = (index) => {
+    const updated = [...images];
+    updated.splice(index, 1);
+    setImages(updated);
+  };
+
+  const removeExistingImage = (img) => {
+    setExistingImages(existingImages.filter((i) => i !== img));
+    setImagesToRemove([...imagesToRemove, img]);
+  };
+
   // Add or update category
   const handleSubmit = async () => {
     if (!name) return alert("Enter category name");
+
+    const formData = new FormData();
+    formData.append("name", name);
+    images.forEach((img) => formData.append("images", img));
+    if (editingId && imagesToRemove.length > 0) {
+      formData.append("imagesToRemove", JSON.stringify(imagesToRemove));
+    }
+
     try {
       if (editingId) {
-        await API.put(`/category/${editingId}`, { name });
+        await API.put(`/category/${editingId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         setToastMessage(`Category "${name}" updated successfully!`);
       } else {
-        await API.post("/category", { name });
+        await API.post("/category", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         setToastMessage(`Category "${name}" added successfully!`);
       }
+
       setName("");
       setEditingId(null);
+      setImages([]);
+      setExistingImages([]);
+      setImagesToRemove([]);
       setShowModal(false);
       fetchCategories();
       setShowToast(true);
@@ -87,13 +123,16 @@ export default function AdminCategoryPage() {
   const handleEdit = (cat) => {
     setName(cat.name);
     setEditingId(cat._id);
+    setExistingImages(cat.images || []);
+    setImages([]);
+    setImagesToRemove([]);
     setShowModal(true);
   };
 
   return (
     <div className="container my-4">
-      {/* Header: Title + Search + Add */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
+      {/* Header */}
+      <div className="d-flex justify-content-between align-items-center mb-3">
         <h2 className="text-sidebar mb-0">Manage Categories</h2>
         <div className="d-flex gap-2">
           <input
@@ -108,6 +147,9 @@ export default function AdminCategoryPage() {
             onClick={() => {
               setName("");
               setEditingId(null);
+              setImages([]);
+              setExistingImages([]);
+              setImagesToRemove([]);
               setShowModal(true);
             }}
           >
@@ -116,37 +158,69 @@ export default function AdminCategoryPage() {
         </div>
       </div>
 
-      {/* Category Cards */}
-      <div className="row g-3">
-        {filteredCategories.map((cat) => (
-          <div className="col-md-4" key={cat._id}>
-            <div className="card shadow-sm border-0 category-card">
-              <div className="card-body d-flex justify-content-between align-items-center">
-                <h5 className="card-title mb-0">{cat.name}</h5>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-outline-warning btn-sm d-flex align-items-center justify-content-center"
-                    onClick={() => handleEdit(cat)}
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    className="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center"
-                    onClick={() => confirmDelete(cat._id, cat.name)}
-                  >
-                    <FaTrash />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-        {filteredCategories.length === 0 && (
-          <p className="text-center text-muted mt-3">No categories found.</p>
-        )}
+      {/* Table */}
+      <div className="table-responsive">
+        <table className="table table-bordered table-hover align-middle">
+          <thead className="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Name</th>
+              <th>Images</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredCategories.length > 0 ? (
+              filteredCategories.map((cat, idx) => (
+                <tr key={cat._id}>
+                  <td>{idx + 1}</td>
+                  <td>{cat.name}</td>
+                  <td>
+                    <div className="d-flex gap-2 flex-wrap">
+                      {cat.images &&
+                        cat.images.map((img, i) => (
+                          <img
+                            key={i}
+                            src={`http://localhost:5000/${img}`}
+                            alt={cat.name}
+                            style={{
+                              width: "60px",
+                              height: "60px",
+                              objectFit: "cover",
+                              borderRadius: "5px",
+                            }}
+                          />
+                        ))}
+                    </div>
+                  </td>
+                  <td>
+                    <button
+                      className="btn btn-outline-warning btn-sm me-2"
+                      onClick={() => handleEdit(cat)}
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => confirmDelete(cat._id, cat.name)}
+                    >
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="4" className="text-center text-muted">
+                  No categories found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* Modal for Add/Edit/Delete */}
+      {/* Modal */}
       {showModal && (
         <div
           className="modal fade show d-block"
@@ -170,6 +244,9 @@ export default function AdminCategoryPage() {
                     setShowModal(false);
                     setDeleteId(null);
                     setDeleteName("");
+                    setImages([]);
+                    setExistingImages([]);
+                    setImagesToRemove([]);
                   }}
                 ></button>
               </div>
@@ -177,13 +254,83 @@ export default function AdminCategoryPage() {
                 {deleteId ? (
                   `Are you sure you want to delete category "${deleteName}"?`
                 ) : (
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Category name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
+                  <>
+                    <input
+                      type="text"
+                      className="form-control mb-3"
+                      placeholder="Category name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                    {existingImages.length > 0 && (
+                      <div className="mb-3 d-flex flex-wrap gap-2">
+                        {existingImages.map((img, idx) => (
+                          <div
+                            key={idx}
+                            className="position-relative"
+                            style={{ display: "inline-block" }}
+                          >
+                            <img
+                              src={`http://localhost:5000/${img}`}
+                              alt="cat"
+                              style={{
+                                width: "80px",
+                                height: "80px",
+                                objectFit: "cover",
+                                borderRadius: "5px",
+                              }}
+                            />
+                            <FaTimes
+                              className="position-absolute top-0 end-0 text-danger"
+                              style={{
+                                cursor: "pointer",
+                                background: "white",
+                                borderRadius: "50%",
+                              }}
+                              onClick={() => removeExistingImage(img)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {images.length > 0 && (
+                      <div className="mb-3 d-flex flex-wrap gap-2">
+                        {images.map((img, idx) => (
+                          <div
+                            key={idx}
+                            className="position-relative"
+                            style={{ display: "inline-block" }}
+                          >
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt="cat"
+                              style={{
+                                width: "80px",
+                                height: "80px",
+                                objectFit: "cover",
+                                borderRadius: "5px",
+                              }}
+                            />
+                            <FaTimes
+                              className="position-absolute top-0 end-0 text-danger"
+                              style={{
+                                cursor: "pointer",
+                                background: "white",
+                                borderRadius: "50%",
+                              }}
+                              onClick={() => removeNewImage(idx)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <input
+                      type="file"
+                      className="form-control"
+                      multiple
+                      onChange={handleImageChange}
+                    />
+                  </>
                 )}
               </div>
               <div className="modal-footer">
@@ -193,14 +340,15 @@ export default function AdminCategoryPage() {
                     setShowModal(false);
                     setDeleteId(null);
                     setDeleteName("");
+                    setImages([]);
+                    setExistingImages([]);
+                    setImagesToRemove([]);
                   }}
                 >
                   {deleteId ? "No" : "Cancel"}
                 </button>
                 <button
-                  className={`btn ${
-                    deleteId ? "btn-danger" : "btn-sidebar"
-                  }`}
+                  className={`btn ${deleteId ? "btn-danger" : "btn-sidebar"}`}
                   onClick={deleteId ? handleDelete : handleSubmit}
                 >
                   {deleteId ? "Yes" : editingId ? "Update" : "Add"}
@@ -211,7 +359,7 @@ export default function AdminCategoryPage() {
         </div>
       )}
 
-      {/* Toast Notification */}
+      {/* Toast */}
       {showToast && (
         <div
           className="toast show position-fixed bottom-0 end-0 m-3 bg-success text-white"

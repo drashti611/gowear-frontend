@@ -1,13 +1,16 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/axios";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "../../css/AdminCss/AdminCategoryPage.css"; // can reuse same CSS
-import { FaEdit, FaTrash } from "react-icons/fa";
+import "../../css/AdminCss/AdminCategoryPage.css";
+import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
 
 export default function Brand() {
   const [brands, setBrands] = useState([]);
   const [filteredBrands, setFilteredBrands] = useState([]);
   const [name, setName] = useState("");
+  const [images, setImages] = useState([]);
+  const [existingImages, setExistingImages] = useState([]);
+  const [imagesToRemove, setImagesToRemove] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -16,7 +19,7 @@ export default function Brand() {
   const [toastMessage, setToastMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch all brands
+  // Fetch brands
   const fetchBrands = async () => {
     try {
       const res = await API.get("/brand/viewBrand");
@@ -39,20 +42,50 @@ export default function Brand() {
     setFilteredBrands(filtered);
   }, [searchTerm, brands]);
 
-  // Add or update brand
+  // Handle image selection
+  const handleImageChange = (e) => {
+    setImages([...images, ...Array.from(e.target.files)]);
+  };
+
+  const removeNewImage = (idx) => {
+    const updated = [...images];
+    updated.splice(idx, 1);
+    setImages(updated);
+  };
+
+  const removeExistingImage = (img) => {
+    setExistingImages(existingImages.filter((i) => i !== img));
+    setImagesToRemove([...imagesToRemove, img]);
+  };
+
+  // Add/Update brand
   const handleSubmit = async () => {
     if (!name) return alert("Enter brand name");
 
+    const formData = new FormData();
+    formData.append("name", name);
+    images.forEach((img) => formData.append("images", img));
+    if (editingId && imagesToRemove.length > 0) {
+      formData.append("imagesToRemove", JSON.stringify(imagesToRemove));
+    }
+
     try {
       if (editingId) {
-        await API.put(`/brand/update/${editingId}`, { name });
+        await API.put(`/brand/update/${editingId}`, formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         setToastMessage(`Brand "${name}" updated successfully!`);
       } else {
-        await API.post("/brand/addBrand", { name });
+        await API.post("/brand/addBrand", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
         setToastMessage(`Brand "${name}" added successfully!`);
       }
 
       setName("");
+      setImages([]);
+      setExistingImages([]);
+      setImagesToRemove([]);
       setEditingId(null);
       setShowModal(false);
       fetchBrands();
@@ -89,6 +122,9 @@ export default function Brand() {
   const handleEdit = (brand) => {
     setName(brand.name);
     setEditingId(brand._id);
+    setExistingImages(brand.images || []);
+    setImages([]);
+    setImagesToRemove([]);
     setShowModal(true);
   };
 
@@ -109,6 +145,9 @@ export default function Brand() {
             className="btn btn-sidebar shadow-sm"
             onClick={() => {
               setName("");
+              setImages([]);
+              setExistingImages([]);
+              setImagesToRemove([]);
               setEditingId(null);
               setShowModal(true);
             }}
@@ -118,36 +157,69 @@ export default function Brand() {
         </div>
       </div>
 
-      {/* Brand Cards */}
-      <div className="row g-3">
-        {filteredBrands.map((brand) => (
-          <div className="col-md-4" key={brand._id}>
-            <div className="card shadow-sm border-0 category-card">
-              <div className="card-body d-flex justify-content-between align-items-center">
-                <div>
-                  <h5 className="card-title mb-0">{brand.name}</h5>
-                </div>
-                <div className="d-flex gap-2">
-                  <button
-                    className="btn btn-outline-warning btn-sm d-flex align-items-center justify-content-center"
-                    onClick={() => handleEdit(brand)}
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    className="btn btn-outline-danger btn-sm d-flex align-items-center justify-content-center"
-                    onClick={() => confirmDelete(brand._id, brand.name)}
-                  >
-                    <FaTrash />
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-        {filteredBrands.length === 0 && (
-          <p className="text-center text-muted mt-3">No brands found.</p>
-        )}
+      {/* Brand Table */}
+      <div className="table-responsive">
+        <table className="table table-bordered table-hover">
+          <thead className="table-dark">
+            <tr>
+              <th>#</th>
+              <th>Images</th>
+              <th>Brand Name</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredBrands.length > 0 ? (
+              filteredBrands.map((brand, index) => (
+                <tr key={brand._id}>
+                  <td>{index + 1}</td>
+                  <td>
+                    <div className="d-flex flex-wrap gap-2">
+                      {brand.images?.length > 0 ? (
+                        brand.images.map((img, idx) => (
+                          <img
+                            key={idx}
+                            src={`http://localhost:5000/${img}`}
+                            alt={brand.name}
+                            style={{
+                              width: "50px",
+                              height: "50px",
+                              objectFit: "cover",
+                              borderRadius: "4px",
+                            }}
+                          />
+                        ))
+                      ) : (
+                        <span className="text-muted">No Image</span>
+                      )}
+                    </div>
+                  </td>
+                  <td>{brand.name}</td>
+                  <td>
+                    <button
+                      className="btn btn-outline-warning btn-sm me-1"
+                      onClick={() => handleEdit(brand)}
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => confirmDelete(brand._id, brand.name)}
+                    >
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={4} className="text-center text-muted">
+                  No brands found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Modal for Add/Edit/Delete */}
@@ -174,6 +246,9 @@ export default function Brand() {
                     setShowModal(false);
                     setDeleteId(null);
                     setDeleteName("");
+                    setImages([]);
+                    setExistingImages([]);
+                    setImagesToRemove([]);
                   }}
                 ></button>
               </div>
@@ -189,6 +264,79 @@ export default function Brand() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                     />
+
+                    {/* Existing images */}
+                    {existingImages.length > 0 && (
+                      <div className="mb-3 d-flex flex-wrap gap-2">
+                        {existingImages.map((img, idx) => (
+                          <div
+                            key={idx}
+                            className="position-relative"
+                            style={{ display: "inline-block" }}
+                          >
+                            <img
+                              src={`http://localhost:5000/${img}`}
+                              alt="brand"
+                              style={{
+                                width: "80px",
+                                height: "80px",
+                                objectFit: "cover",
+                                borderRadius: "5px",
+                              }}
+                            />
+                            <FaTimes
+                              className="position-absolute top-0 end-0 text-danger"
+                              style={{
+                                cursor: "pointer",
+                                background: "white",
+                                borderRadius: "50%",
+                              }}
+                              onClick={() => removeExistingImage(img)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* New images */}
+                    {images.length > 0 && (
+                      <div className="mb-3 d-flex flex-wrap gap-2">
+                        {images.map((img, idx) => (
+                          <div
+                            key={idx}
+                            className="position-relative"
+                            style={{ display: "inline-block" }}
+                          >
+                            <img
+                              src={URL.createObjectURL(img)}
+                              alt="brand"
+                              style={{
+                                width: "80px",
+                                height: "80px",
+                                objectFit: "cover",
+                                borderRadius: "5px",
+                              }}
+                            />
+                            <FaTimes
+                              className="position-absolute top-0 end-0 text-danger"
+                              style={{
+                                cursor: "pointer",
+                                background: "white",
+                                borderRadius: "50%",
+                              }}
+                              onClick={() => removeNewImage(idx)}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    <input
+                      type="file"
+                      className="form-control"
+                      multiple
+                      onChange={handleImageChange}
+                    />
                   </>
                 )}
               </div>
@@ -199,6 +347,9 @@ export default function Brand() {
                     setShowModal(false);
                     setDeleteId(null);
                     setDeleteName("");
+                    setImages([]);
+                    setExistingImages([]);
+                    setImagesToRemove([]);
                   }}
                 >
                   {deleteId ? "No" : "Cancel"}
