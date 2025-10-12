@@ -45,17 +45,30 @@ export default function AdminProductPage() {
       alert(err.response?.data?.message || "Error fetching products");
     }
   };
+  const fetchSubCategoriesByCategory = async (categoryId) => {
+    if (!categoryId) {
+      setSubCategories([]);
+      return;
+    }
+    try {
+      const res = await API.get(
+        `/subcategory/viewSubCategoryByCategoryID/${categoryId}`
+      );
+      setSubCategories(res.data);
+    } catch (err) {
+      console.error("Error fetching subcategories:", err);
+      alert("Error fetching subcategories");
+    }
+  };
 
   // Fetch dropdown data
   const fetchDropdowns = async () => {
     try {
-      const [catRes, subCatRes, brandRes] = await Promise.all([
+      const [catRes, brandRes] = await Promise.all([
         API.get("/category"),
-        API.get("/subcategory/viewSubCategory"),
         API.get("/brand/viewBrand"),
       ]);
       setCategories(catRes.data);
-      setSubCategories(subCatRes.data);
       setBrands(brandRes.data);
     } catch (err) {
       console.error("Error fetching dropdown data:", err);
@@ -99,7 +112,10 @@ export default function AdminProductPage() {
   const addVariant = () => {
     setProductData({
       ...productData,
-      variants: [...productData.variants, { color: "", sizes: [{ size: "", stock: 0, price: 0 }] }],
+      variants: [
+        ...productData.variants,
+        { color: "", sizes: [{ size: "", stock: 0, price: 0 }] },
+      ],
     });
   };
 
@@ -110,9 +126,12 @@ export default function AdminProductPage() {
   };
 
   const getPriceDisplay = (product) => {
-    if (!product.variants || product.variants.length === 0) return `₹${product.price || 0}`;
+    if (!product.variants || product.variants.length === 0)
+      return `₹${product.price || 0}`;
     let prices = [];
-    product.variants.forEach((v) => v.sizes.forEach((s) => prices.push(s.price)));
+    product.variants.forEach((v) =>
+      v.sizes.forEach((s) => prices.push(s.price))
+    );
     prices = prices.filter((p) => p !== undefined && !isNaN(p));
     if (prices.length === 0) return "Price not set";
     const min = Math.min(...prices);
@@ -139,7 +158,16 @@ export default function AdminProductPage() {
       formData.append("brandId", productData.brandId || "");
       formData.append("discount", productData.discount || 0);
 
+      // ✅ add images to remove (stringified)
+      formData.append(
+        "imagesToRemove",
+        JSON.stringify(productData.imagesToRemove || [])
+      );
+
+      // ✅ new uploaded images
       productData.images.forEach((img) => formData.append("images", img));
+
+      // ✅ variants
       formData.append("variants", JSON.stringify(productData.variants));
 
       if (editingId) {
@@ -158,6 +186,8 @@ export default function AdminProductPage() {
         brandId: "",
         discount: 0,
         images: [],
+        existingImages: [],
+        imagesToRemove: [],
         variants: [{ color: "", sizes: [{ size: "", stock: 0, price: 0 }] }],
       });
       setEditingId(null);
@@ -200,7 +230,9 @@ export default function AdminProductPage() {
       subCategoryId: p.subCategoryId?._id || "",
       brandId: p.brandId?._id || "",
       discount: p.discount || 0,
-      images: [],
+      images: [], // for new uploads
+      existingImages: p.images || [], // ✅ already uploaded images
+      imagesToRemove: [], // ✅ track deleted ones
       variants:
         p.variants.length > 0
           ? p.variants.map((v) => ({
@@ -213,6 +245,8 @@ export default function AdminProductPage() {
             }))
           : [{ color: "", sizes: [{ size: "", stock: 0, price: 0 }] }],
     });
+
+    if (p.categoryId?._id) fetchSubCategoriesByCategory(p.categoryId._id);
     setEditingId(p._id);
     setShowModal(true);
   };
@@ -241,7 +275,9 @@ export default function AdminProductPage() {
                 brandId: "",
                 discount: 0,
                 images: [],
-                variants: [{ color: "", sizes: [{ size: "", stock: 0, price: 0 }] }],
+                variants: [
+                  { color: "", sizes: [{ size: "", stock: 0, price: 0 }] },
+                ],
               });
               setEditingId(null);
               setShowModal(true);
@@ -291,13 +327,21 @@ export default function AdminProductPage() {
                 <td>{getPriceDisplay(p)}</td>
                 <td>
                   {getTotalStock(p)}
-                  {getTotalStock(p) < 5 && <span className="text-danger ms-2">Low Stock!</span>}
+                  {getTotalStock(p) < 5 && (
+                    <span className="text-danger ms-2">Low Stock!</span>
+                  )}
                 </td>
                 <td>
-                  <button className="btn btn-outline-warning btn-sm me-1" onClick={() => handleEdit(p)}>
+                  <button
+                    className="btn btn-outline-warning btn-sm me-1"
+                    onClick={() => handleEdit(p)}
+                  >
                     <FaEdit />
                   </button>
-                  <button className="btn btn-outline-danger btn-sm" onClick={() => confirmDelete(p._id, p.name)}>
+                  <button
+                    className="btn btn-outline-danger btn-sm"
+                    onClick={() => confirmDelete(p._id, p.name)}
+                  >
                     <FaTrash />
                   </button>
                 </td>
@@ -316,11 +360,21 @@ export default function AdminProductPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal fade show d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog modal-dialog-centered modal-lg">
             <div className="modal-content">
               <div className="modal-header bg-sidebar text-white">
-                <h5 className="modal-title">{deleteId ? "Delete Product" : editingId ? "Edit Product" : "Add Product"}</h5>
+                <h5 className="modal-title">
+                  {deleteId
+                    ? "Delete Product"
+                    : editingId
+                    ? "Edit Product"
+                    : "Add Product"}
+                </h5>
                 <button
                   type="button"
                   className="btn-close"
@@ -343,7 +397,12 @@ export default function AdminProductPage() {
                         className="form-control"
                         placeholder="Product Name"
                         value={productData.name || ""}
-                        onChange={(e) => setProductData({ ...productData, name: e.target.value })}
+                        onChange={(e) =>
+                          setProductData({
+                            ...productData,
+                            name: e.target.value,
+                          })
+                        }
                         title="Enter the product name"
                       />
                     </div>
@@ -354,7 +413,12 @@ export default function AdminProductPage() {
                         className="form-control"
                         placeholder="Description"
                         value={productData.description || ""}
-                        onChange={(e) => setProductData({ ...productData, description: e.target.value })}
+                        onChange={(e) =>
+                          setProductData({
+                            ...productData,
+                            description: e.target.value,
+                          })
+                        }
                         title="Enter a short description"
                       ></textarea>
                     </div>
@@ -364,7 +428,15 @@ export default function AdminProductPage() {
                       <select
                         className="form-control"
                         value={productData.categoryId || ""}
-                        onChange={(e) => setProductData({ ...productData, categoryId: e.target.value })}
+                        onChange={(e) => {
+                          const selectedCategory = e.target.value;
+                          setProductData({
+                            ...productData,
+                            categoryId: selectedCategory,
+                            subCategoryId: "", // reset subcategory when category changes
+                          });
+                          fetchSubCategoriesByCategory(selectedCategory); // ✅ dynamically load
+                        }}
                       >
                         <option value="">Select Category</option>
                         {categories.map((c) => (
@@ -380,7 +452,12 @@ export default function AdminProductPage() {
                       <select
                         className="form-control"
                         value={productData.subCategoryId || ""}
-                        onChange={(e) => setProductData({ ...productData, subCategoryId: e.target.value })}
+                        onChange={(e) =>
+                          setProductData({
+                            ...productData,
+                            subCategoryId: e.target.value,
+                          })
+                        }
                       >
                         <option value="">Select SubCategory</option>
                         {subCategories.map((s) => (
@@ -396,7 +473,12 @@ export default function AdminProductPage() {
                       <select
                         className="form-control"
                         value={productData.brandId || ""}
-                        onChange={(e) => setProductData({ ...productData, brandId: e.target.value })}
+                        onChange={(e) =>
+                          setProductData({
+                            ...productData,
+                            brandId: e.target.value,
+                          })
+                        }
                       >
                         <option value="">Select Brand</option>
                         {brands.map((b) => (
@@ -413,10 +495,70 @@ export default function AdminProductPage() {
                         type="number"
                         className="form-control"
                         placeholder="Discount %"
-                        value={productData.discount || 0}
-                        onChange={(e) => setProductData({ ...productData, discount: e.target.value })}
+                        value={
+                          productData.discount !== undefined
+                            ? productData.discount
+                            : ""
+                        }
+                        onChange={(e) =>
+                          setProductData({
+                            ...productData,
+                            discount:
+                              e.target.value === ""
+                                ? ""
+                                : Number(e.target.value),
+                          })
+                        }
                       />
                     </div>
+
+                    {/* Existing Images Section */}
+                    {editingId &&
+                      productData.existingImages &&
+                      productData.existingImages.length > 0 && (
+                        <div className="mb-3">
+                          <h6>Existing Images</h6>
+                          <div className="d-flex flex-wrap gap-2">
+                            {productData.existingImages.map((img, index) => (
+                              <div key={index} className="position-relative">
+                                <img
+                                  src={`http://localhost:5000/${img}`}
+                                  alt="product"
+                                  style={{
+                                    width: "80px",
+                                    height: "80px",
+                                    objectFit: "cover",
+                                    borderRadius: "8px",
+                                    border: "1px solid #ccc",
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-danger position-absolute top-0 end-0"
+                                  style={{ transform: "translate(30%, -30%)" }}
+                                  onClick={() => {
+                                    const updatedExisting =
+                                      productData.existingImages.filter(
+                                        (x) => x !== img
+                                      );
+                                    const removed = [
+                                      ...productData.imagesToRemove,
+                                      img,
+                                    ];
+                                    setProductData({
+                                      ...productData,
+                                      existingImages: updatedExisting,
+                                      imagesToRemove: removed,
+                                    });
+                                  }}
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
 
                     {/* Images */}
                     <div className="mb-2">
@@ -424,7 +566,12 @@ export default function AdminProductPage() {
                         type="file"
                         className="form-control"
                         multiple
-                        onChange={(e) => setProductData({ ...productData, images: Array.from(e.target.files) })}
+                        onChange={(e) =>
+                          setProductData({
+                            ...productData,
+                            images: Array.from(e.target.files),
+                          })
+                        }
                       />
                     </div>
 
@@ -441,7 +588,10 @@ export default function AdminProductPage() {
                             onChange={(e) => {
                               const newVariants = [...productData.variants];
                               newVariants[vi].color = e.target.value;
-                              setProductData({ ...productData, variants: newVariants });
+                              setProductData({
+                                ...productData,
+                                variants: newVariants,
+                              });
                             }}
                           />
                           {v.sizes.map((s, si) => (
@@ -451,36 +601,75 @@ export default function AdminProductPage() {
                                 placeholder="Size"
                                 className="form-control"
                                 value={s.size || ""}
-                                onChange={(e) => handleSizeChange(vi, si, "size", e.target.value)}
+                                onChange={(e) =>
+                                  handleSizeChange(
+                                    vi,
+                                    si,
+                                    "size",
+                                    e.target.value
+                                  )
+                                }
                               />
                               <input
                                 type="number"
                                 placeholder="Stock"
-                                className={`form-control ${s.stock < 5 ? "border-danger" : ""}`}
+                                className={`form-control ${
+                                  s.stock < 5 ? "border-danger" : ""
+                                }`}
                                 value={s.stock || ""}
-                                onChange={(e) => handleSizeChange(vi, si, "stock", e.target.value)}
+                                onChange={(e) =>
+                                  handleSizeChange(
+                                    vi,
+                                    si,
+                                    "stock",
+                                    e.target.value
+                                  )
+                                }
                               />
                               <input
                                 type="number"
                                 placeholder="Price"
                                 className="form-control"
                                 value={s.price || ""}
-                                onChange={(e) => handleSizeChange(vi, si, "price", e.target.value)}
+                                onChange={(e) =>
+                                  handleSizeChange(
+                                    vi,
+                                    si,
+                                    "price",
+                                    e.target.value
+                                  )
+                                }
                               />
-                              <button type="button" className="btn btn-danger btn-sm" onClick={() => removeSize(vi, si)}>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                onClick={() => removeSize(vi, si)}
+                              >
                                 Remove Size
                               </button>
                             </div>
                           ))}
-                          <button type="button" className="btn btn-secondary btn-sm mb-1" onClick={() => addSize(vi)}>
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm mb-1"
+                            onClick={() => addSize(vi)}
+                          >
                             Add Size
                           </button>
-                          <button type="button" className="btn btn-danger btn-sm" onClick={() => removeVariant(vi)}>
+                          <button
+                            type="button"
+                            className="btn btn-danger btn-sm"
+                            onClick={() => removeVariant(vi)}
+                          >
                             Remove Variant
                           </button>
                         </div>
                       ))}
-                      <button type="button" className="btn btn-sidebar btn-sm" onClick={addVariant}>
+                      <button
+                        type="button"
+                        className="btn btn-sidebar btn-sm"
+                        onClick={addVariant}
+                      >
                         Add Variant
                       </button>
                     </div>
@@ -499,7 +688,10 @@ export default function AdminProductPage() {
                 >
                   {deleteId ? "No" : "Cancel"}
                 </button>
-                <button className={`btn ${deleteId ? "btn-danger" : "btn-sidebar"}`} onClick={deleteId ? handleDelete : handleSubmit}>
+                <button
+                  className={`btn ${deleteId ? "btn-danger" : "btn-sidebar"}`}
+                  onClick={deleteId ? handleDelete : handleSubmit}
+                >
                   {deleteId ? "Yes" : editingId ? "Update" : "Add"}
                 </button>
               </div>
