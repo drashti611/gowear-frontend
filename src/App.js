@@ -11,6 +11,11 @@ import AdminHome from "./pages/Admin/AdminHome";
 import AdminSubCategories from "./pages/Admin/AdminSubCategories";
 import Brand from "./pages/Admin/Brand";
 import AdminProductPage from "./pages/Admin/AdminProductPage";
+import AdminUsers from "./pages/Admin/AdminUsers";
+import SubCategoryScreen from "./pages/Users/SubCategoryScreen";
+import ProductByCategoryScreen from "./pages/Users/ProductByCategoryScreen";
+import ProductDetailScreen from "./pages/Users/ProductDetailScreen";
+import AdminClothingTypePage from "./pages/Admin/AdminClothingTypePage";
 
 function App() {
   return (
@@ -23,6 +28,9 @@ function App() {
         <Route path="/register" element={<Register />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/verify-otp" element={<VerifyOtp />} />
+        <Route path="/category/:id" element={<SubCategoryScreen />} />
+        <Route path="/products/:subCategoryId" element={<ProductByCategoryScreen />} />
+        <Route path="/productdetail/:id" element={<ProductDetailScreen />} />
 
         {/* Admin Routes with nested structure */}
         <Route
@@ -38,7 +46,11 @@ function App() {
           <Route path="categories" element={<AdminCategoryPage />} />
           <Route path="subcategories" element={<AdminSubCategories />} />
           <Route path="brands" element={<Brand />} />
-          <Route path="products" element={<AdminProductPage />} /> 
+          <Route path="products" element={<AdminProductPage />} />
+
+          <Route path="clothing-types" element={<AdminClothingTypePage />} /> {/* <-- New Route */}
+
+          <Route path="users" element={<AdminUsers />} />
 
           {/* Add more nested admin pages here */}
         </Route>

@@ -8,9 +8,8 @@ export default function Brand() {
   const [brands, setBrands] = useState([]);
   const [filteredBrands, setFilteredBrands] = useState([]);
   const [name, setName] = useState("");
-  const [images, setImages] = useState([]);
-  const [existingImages, setExistingImages] = useState([]);
-  const [imagesToRemove, setImagesToRemove] = useState([]);
+  const [image, setImage] = useState(null); // single image
+  const [existingImage, setExistingImage] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -44,19 +43,11 @@ export default function Brand() {
 
   // Handle image selection
   const handleImageChange = (e) => {
-    setImages([...images, ...Array.from(e.target.files)]);
+    setImage(e.target.files[0]);
   };
 
-  const removeNewImage = (idx) => {
-    const updated = [...images];
-    updated.splice(idx, 1);
-    setImages(updated);
-  };
-
-  const removeExistingImage = (img) => {
-    setExistingImages(existingImages.filter((i) => i !== img));
-    setImagesToRemove([...imagesToRemove, img]);
-  };
+  const removeNewImage = () => setImage(null);
+  const removeExistingImage = () => setExistingImage(null);
 
   // Add/Update brand
   const handleSubmit = async () => {
@@ -64,10 +55,7 @@ export default function Brand() {
 
     const formData = new FormData();
     formData.append("name", name);
-    images.forEach((img) => formData.append("images", img));
-    if (editingId && imagesToRemove.length > 0) {
-      formData.append("imagesToRemove", JSON.stringify(imagesToRemove));
-    }
+    if (image) formData.append("image", image);
 
     try {
       if (editingId) {
@@ -83,9 +71,8 @@ export default function Brand() {
       }
 
       setName("");
-      setImages([]);
-      setExistingImages([]);
-      setImagesToRemove([]);
+      setImage(null);
+      setExistingImage(null);
       setEditingId(null);
       setShowModal(false);
       fetchBrands();
@@ -122,9 +109,8 @@ export default function Brand() {
   const handleEdit = (brand) => {
     setName(brand.name);
     setEditingId(brand._id);
-    setExistingImages(brand.images || []);
-    setImages([]);
-    setImagesToRemove([]);
+    setExistingImage(brand.images?.[0] || null);
+    setImage(null);
     setShowModal(true);
   };
 
@@ -145,9 +131,8 @@ export default function Brand() {
             className="btn btn-sidebar shadow-sm"
             onClick={() => {
               setName("");
-              setImages([]);
-              setExistingImages([]);
-              setImagesToRemove([]);
+              setImage(null);
+              setExistingImage(null);
               setEditingId(null);
               setShowModal(true);
             }}
@@ -163,7 +148,7 @@ export default function Brand() {
           <thead className="table-dark">
             <tr>
               <th>#</th>
-              <th>Images</th>
+              <th>Image</th>
               <th>Brand Name</th>
               <th>Actions</th>
             </tr>
@@ -174,25 +159,20 @@ export default function Brand() {
                 <tr key={brand._id}>
                   <td>{index + 1}</td>
                   <td>
-                    <div className="d-flex flex-wrap gap-2">
-                      {brand.images?.length > 0 ? (
-                        brand.images.map((img, idx) => (
-                          <img
-                            key={idx}
-                            src={`http://localhost:5000/${img}`}
-                            alt={brand.name}
-                            style={{
-                              width: "50px",
-                              height: "50px",
-                              objectFit: "cover",
-                              borderRadius: "4px",
-                            }}
-                          />
-                        ))
-                      ) : (
-                        <span className="text-muted">No Image</span>
-                      )}
-                    </div>
+                    {brand.images?.[0] ? (
+                      <img
+                        src={`http://localhost:5000/${brand.images[0]}`}
+                        alt={brand.name}
+                        style={{
+                          width: "50px",
+                          height: "50px",
+                          objectFit: "cover",
+                          borderRadius: "4px",
+                        }}
+                      />
+                    ) : (
+                      <span className="text-muted">No Image</span>
+                    )}
                   </td>
                   <td>{brand.name}</td>
                   <td>
@@ -242,14 +222,7 @@ export default function Brand() {
                 <button
                   type="button"
                   className="btn-close"
-                  onClick={() => {
-                    setShowModal(false);
-                    setDeleteId(null);
-                    setDeleteName("");
-                    setImages([]);
-                    setExistingImages([]);
-                    setImagesToRemove([]);
-                  }}
+                  onClick={() => setShowModal(false)}
                 ></button>
               </div>
               <div className="modal-body">
@@ -265,76 +238,51 @@ export default function Brand() {
                       onChange={(e) => setName(e.target.value)}
                     />
 
-                    {/* Existing images */}
-                    {existingImages.length > 0 && (
-                      <div className="mb-3 d-flex flex-wrap gap-2">
-                        {existingImages.map((img, idx) => (
-                          <div
-                            key={idx}
-                            className="position-relative"
-                            style={{ display: "inline-block" }}
-                          >
-                            <img
-                              src={`http://localhost:5000/${img}`}
-                              alt="brand"
-                              style={{
-                                width: "80px",
-                                height: "80px",
-                                objectFit: "cover",
-                                borderRadius: "5px",
-                              }}
-                            />
-                            <FaTimes
-                              className="position-absolute top-0 end-0 text-danger"
-                              style={{
-                                cursor: "pointer",
-                                background: "white",
-                                borderRadius: "50%",
-                              }}
-                              onClick={() => removeExistingImage(img)}
-                            />
-                          </div>
-                        ))}
+                    {/* Existing image */}
+                    {existingImage && (
+                      <div className="mb-3 position-relative" style={{ display: "inline-block" }}>
+                        <img
+                          src={`http://localhost:5000/${existingImage}`}
+                          alt="brand"
+                          style={{
+                            width: "80px",
+                            height: "80px",
+                            objectFit: "cover",
+                            borderRadius: "5px",
+                          }}
+                        />
+                        <FaTimes
+                          className="position-absolute top-0 end-0 text-danger"
+                          style={{ cursor: "pointer", background: "white", borderRadius: "50%" }}
+                          onClick={removeExistingImage}
+                        />
                       </div>
                     )}
 
-                    {/* New images */}
-                    {images.length > 0 && (
-                      <div className="mb-3 d-flex flex-wrap gap-2">
-                        {images.map((img, idx) => (
-                          <div
-                            key={idx}
-                            className="position-relative"
-                            style={{ display: "inline-block" }}
-                          >
-                            <img
-                              src={URL.createObjectURL(img)}
-                              alt="brand"
-                              style={{
-                                width: "80px",
-                                height: "80px",
-                                objectFit: "cover",
-                                borderRadius: "5px",
-                              }}
-                            />
-                            <FaTimes
-                              className="position-absolute top-0 end-0 text-danger"
-                              style={{
-                                cursor: "pointer",
-                                background: "white",
-                                borderRadius: "50%",
-                              }}
-                              onClick={() => removeNewImage(idx)}
-                            />
-                          </div>
-                        ))}
+                    {/* New image */}
+                    {image && (
+                      <div className="mb-3 position-relative" style={{ display: "inline-block" }}>
+                        <img
+                          src={URL.createObjectURL(image)}
+                          alt="brand"
+                          style={{
+                            width: "80px",
+                            height: "80px",
+                            objectFit: "cover",
+                            borderRadius: "5px",
+                          }}
+                        />
+                        <FaTimes
+                          className="position-absolute top-0 end-0 text-danger"
+                          style={{ cursor: "pointer", background: "white", borderRadius: "50%" }}
+                          onClick={removeNewImage}
+                        />
                       </div>
                     )}
 
                     <input
                       type="file"
                       className="form-control"
-                      multiple
                       onChange={handleImageChange}
                     />
                   </>
@@ -343,14 +291,7 @@ export default function Brand() {
               <div className="modal-footer">
                 <button
                   className="btn btn-secondary"
-                  onClick={() => {
-                    setShowModal(false);
-                    setDeleteId(null);
-                    setDeleteName("");
-                    setImages([]);
-                    setExistingImages([]);
-                    setImagesToRemove([]);
-                  }}
+                  onClick={() => setShowModal(false)}
                 >
                   {deleteId ? "No" : "Cancel"}
                 </button>

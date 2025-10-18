@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import API from "../api/axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../css/Navbar.css";
 
@@ -11,39 +12,41 @@ export default function Navbar() {
 
   const [city, setCity] = useState(null);
   const [locationError, setLocationError] = useState(null);
+  const [categories, setCategories] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  // ---- Hooks first ----
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setLocationError("Geolocation not supported by browser");
-      return;
-    }
-
+    if (!navigator.geolocation) return setLocationError("Geolocation not supported");
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude, longitude } = position.coords;
+      async (pos) => {
+        const { latitude, longitude } = pos.coords;
         try {
-          // Reverse geocoding using OpenStreetMap Nominatim
-          const response = await fetch(
+          const res = await fetch(
             `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
           );
-          const data = await response.json();
-          const cityName =
-            data.address.city ||
-            data.address.town ||
-            data.address.village ||
-            data.address.county ||
-            "Unknown location";
-          setCity(cityName);
-        } catch (err) {
-          setLocationError("Unable to get city");
+          const data = await res.json();
+          setCity(
+            data.address.city || data.address.town || data.address.village || "Unknown location"
+          );
+        } catch {
+          setLocationError("Unable to detect city");
         }
       },
-      (error) => {
-        setLocationError(error.message);
-      },
+      (err) => setLocationError(err.message),
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  }, []);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await API.get("/category/");
+        setCategories(res.data);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchCategories();
   }, []);
 
   if (location.pathname.startsWith("/admin")) return null;
@@ -57,84 +60,80 @@ export default function Navbar() {
   const homeLink = role === "admin" ? "/admin/home" : "/";
 
   return (
-    <nav className="navbar navbar-expand-lg ecommerce-navbar">
-      <div className="container">
+    <nav className="navbar navbar-expand-lg sticky-top navbar-dark premium-navbar">
+      <div className="container-fluid">
         {/* Brand */}
         <span
-          className="navbar-brand ecommerce-brand"
+          className="navbar-brand premium-brand"
           onClick={() => navigate(homeLink)}
         >
           GoWear
         </span>
 
-        {/* Toggler */}
+        {/* Mobile toggle */}
         <button
           className="navbar-toggler"
           type="button"
           data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
+          data-bs-target="#navbarContent"
+          aria-controls="navbarContent"
           aria-expanded="false"
           aria-label="Toggle navigation"
         >
           <span className="navbar-toggler-icon"></span>
         </button>
 
-        {/* Links */}
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <ul className="navbar-nav ms-auto align-items-center">
-            {/* Location display */}
-            <li className="nav-item me-3 d-flex align-items-center">
-              {city ? (
-                <span className="nav-link" style={{ cursor: "default" }}>
-                  Delivering to {city}
+        <div className="collapse navbar-collapse" id="navbarContent">
+          {/* Categories */}
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0 flex-row flex-wrap category-scroll">
+            {categories.map((cat) => (
+              <li
+                key={cat._id}
+                className="nav-item me-3"
+                onClick={() => navigate(`/category/${cat._id}`)}
+              >
+                <span className="nav-link category-link">
+                  {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
                 </span>
-              ) : locationError ? (
-                <span
-                  className="nav-link text-danger"
-                  style={{ cursor: "default" }}
-                >
-                  {locationError}
-                </span>
-              ) : (
-                <span className="nav-link" style={{ cursor: "default" }}>
-                  Detecting location...
-                </span>
-              )}
-            </li>
+              </li>
+            ))}
+          </ul>
 
-            {/* Search bar */}
-            <li className="nav-item me-2 d-none d-lg-block">
+          {/* Right side */}
+          <div className="d-flex align-items-center mt-2 mt-lg-0">
+            {/* Location */}
+            <span className="nav-location me-3">
+              {city ? `Delivering to ${city}` : locationError || "Detecting location..."}
+            </span>
+
+            {/* Modern Search */}
+            <div className="search-container me-3">
               <input
                 type="text"
-                className="form-control form-control-sm search-input"
-                placeholder="Search for products..."
+                className="search-input"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
               />
-            </li>
+              <span className="search-icon">🔍</span>
+            </div>
 
-            {/* Cart icon */}
-            <li className="nav-item ms-3">
-              <span className="cart-icon">
-                🛒 <span className="cart-badge">0</span>
-              </span>
-            </li>
+            {/* Cart */}
+            <span className="cart-icon me-3">
+              🛒 <span className="cart-badge">0</span>
+            </span>
+
+            {/* Login/Logout */}
             {!token ? (
-              <li className="nav-item">
-                <span
-                  className="nav-link login-link"
-                  onClick={() => navigate("/login")}
-                >
-                  Login
-                </span>
-              </li>
+              <button className="btn login-link" onClick={() => navigate("/login")}>
+                Login
+              </button>
             ) : (
-              <li className="nav-item">
-                <button className="btn logout-btn" onClick={logout}>
-                  Logout
-                </button>
-              </li>
+              <button className="btn logout-btn" onClick={logout}>
+                Logout
+              </button>
             )}
-          </ul>
+          </div>
         </div>
       </div>
     </nav>

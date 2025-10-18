@@ -15,9 +15,9 @@ export default function AdminCategoryPage() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [images, setImages] = useState([]);
-  const [existingImages, setExistingImages] = useState([]);
-  const [imagesToRemove, setImagesToRemove] = useState([]);
+  const [image, setImage] = useState(null);
+  const [existingImage, setExistingImage] = useState(null);
+  const [removeExistingImage, setRemoveExistingImage] = useState(false);
 
   // Fetch categories
   const fetchCategories = async () => {
@@ -44,19 +44,12 @@ export default function AdminCategoryPage() {
 
   // Image handling
   const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    setImages([...images, ...files]);
+    setImage(e.target.files[0]);
   };
 
-  const removeNewImage = (index) => {
-    const updated = [...images];
-    updated.splice(index, 1);
-    setImages(updated);
-  };
-
-  const removeExistingImage = (img) => {
-    setExistingImages(existingImages.filter((i) => i !== img));
-    setImagesToRemove([...imagesToRemove, img]);
+  const removeImage = () => {
+    setImage(null);
+    setRemoveExistingImage(true);
   };
 
   // Add or update category
@@ -65,10 +58,8 @@ export default function AdminCategoryPage() {
 
     const formData = new FormData();
     formData.append("name", name);
-    images.forEach((img) => formData.append("images", img));
-    if (editingId && imagesToRemove.length > 0) {
-      formData.append("imagesToRemove", JSON.stringify(imagesToRemove));
-    }
+    if (image) formData.append("image", image);
+    if (editingId && removeExistingImage) formData.append("imagesToRemove", JSON.stringify([existingImage]));
 
     try {
       if (editingId) {
@@ -85,9 +76,9 @@ export default function AdminCategoryPage() {
 
       setName("");
       setEditingId(null);
-      setImages([]);
-      setExistingImages([]);
-      setImagesToRemove([]);
+      setImage(null);
+      setExistingImage(null);
+      setRemoveExistingImage(false);
       setShowModal(false);
       fetchCategories();
       setShowToast(true);
@@ -123,9 +114,9 @@ export default function AdminCategoryPage() {
   const handleEdit = (cat) => {
     setName(cat.name);
     setEditingId(cat._id);
-    setExistingImages(cat.images || []);
-    setImages([]);
-    setImagesToRemove([]);
+    setExistingImage(cat.images?.[0] || null);
+    setImage(null);
+    setRemoveExistingImage(false);
     setShowModal(true);
   };
 
@@ -147,9 +138,9 @@ export default function AdminCategoryPage() {
             onClick={() => {
               setName("");
               setEditingId(null);
-              setImages([]);
-              setExistingImages([]);
-              setImagesToRemove([]);
+              setImage(null);
+              setExistingImage(null);
+              setRemoveExistingImage(false);
               setShowModal(true);
             }}
           >
@@ -165,7 +156,7 @@ export default function AdminCategoryPage() {
             <tr>
               <th>#</th>
               <th>Name</th>
-              <th>Images</th>
+              <th>Image</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -176,22 +167,15 @@ export default function AdminCategoryPage() {
                   <td>{idx + 1}</td>
                   <td>{cat.name}</td>
                   <td>
-                    <div className="d-flex gap-2 flex-wrap">
-                      {cat.images &&
-                        cat.images.map((img, i) => (
-                          <img
-                            key={i}
-                            src={`http://localhost:5000/${img}`}
-                            alt={cat.name}
-                            style={{
-                              width: "60px",
-                              height: "60px",
-                              objectFit: "cover",
-                              borderRadius: "5px",
-                            }}
-                          />
-                        ))}
-                    </div>
+                    {cat.images?.[0] ? (
+                      <img
+                        src={`http://localhost:5000/${cat.images[0]}`}
+                        alt={cat.name}
+                        style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "5px" }}
+                      />
+                    ) : (
+                      <span className="text-muted">No Image</span>
+                    )}
                   </td>
                   <td>
                     <button
@@ -222,20 +206,12 @@ export default function AdminCategoryPage() {
 
       {/* Modal */}
       {showModal && (
-        <div
-          className="modal fade show d-block"
-          tabIndex="-1"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-        >
+        <div className="modal fade show d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header bg-sidebar text-white">
                 <h5 className="modal-title">
-                  {deleteId
-                    ? "Delete Category"
-                    : editingId
-                    ? "Edit Category"
-                    : "Add Category"}
+                  {deleteId ? "Delete Category" : editingId ? "Edit Category" : "Add Category"}
                 </h5>
                 <button
                   type="button"
@@ -244,9 +220,9 @@ export default function AdminCategoryPage() {
                     setShowModal(false);
                     setDeleteId(null);
                     setDeleteName("");
-                    setImages([]);
-                    setExistingImages([]);
-                    setImagesToRemove([]);
+                    setImage(null);
+                    setExistingImage(null);
+                    setRemoveExistingImage(false);
                   }}
                 ></button>
               </div>
@@ -262,74 +238,21 @@ export default function AdminCategoryPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                     />
-                    {existingImages.length > 0 && (
-                      <div className="mb-3 d-flex flex-wrap gap-2">
-                        {existingImages.map((img, idx) => (
-                          <div
-                            key={idx}
-                            className="position-relative"
-                            style={{ display: "inline-block" }}
-                          >
-                            <img
-                              src={`http://localhost:5000/${img}`}
-                              alt="cat"
-                              style={{
-                                width: "80px",
-                                height: "80px",
-                                objectFit: "cover",
-                                borderRadius: "5px",
-                              }}
-                            />
-                            <FaTimes
-                              className="position-absolute top-0 end-0 text-danger"
-                              style={{
-                                cursor: "pointer",
-                                background: "white",
-                                borderRadius: "50%",
-                              }}
-                              onClick={() => removeExistingImage(img)}
-                            />
-                          </div>
-                        ))}
+                    {(existingImage && !removeExistingImage) && (
+                      <div className="mb-3 position-relative d-inline-block">
+                        <img
+                          src={`http://localhost:5000/${existingImage}`}
+                          alt="cat"
+                          style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "5px" }}
+                        />
+                        <FaTimes
+                          className="position-absolute top-0 end-0 text-danger"
+                          style={{ cursor: "pointer", background: "white", borderRadius: "50%" }}
+                          onClick={removeImage}
+                        />
                       </div>
                     )}
-                    {images.length > 0 && (
-                      <div className="mb-3 d-flex flex-wrap gap-2">
-                        {images.map((img, idx) => (
-                          <div
-                            key={idx}
-                            className="position-relative"
-                            style={{ display: "inline-block" }}
-                          >
-                            <img
-                              src={URL.createObjectURL(img)}
-                              alt="cat"
-                              style={{
-                                width: "80px",
-                                height: "80px",
-                                objectFit: "cover",
-                                borderRadius: "5px",
-                              }}
-                            />
-                            <FaTimes
-                              className="position-absolute top-0 end-0 text-danger"
-                              style={{
-                                cursor: "pointer",
-                                background: "white",
-                                borderRadius: "50%",
-                              }}
-                              onClick={() => removeNewImage(idx)}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                    <input
-                      type="file"
-                      className="form-control"
-                      multiple
-                      onChange={handleImageChange}
-                    />
+                    <input type="file" className="form-control" onChange={handleImageChange} />
                   </>
                 )}
               </div>
@@ -340,9 +263,9 @@ export default function AdminCategoryPage() {
                     setShowModal(false);
                     setDeleteId(null);
                     setDeleteName("");
-                    setImages([]);
-                    setExistingImages([]);
-                    setImagesToRemove([]);
+                    setImage(null);
+                    setExistingImage(null);
+                    setRemoveExistingImage(false);
                   }}
                 >
                   {deleteId ? "No" : "Cancel"}
@@ -361,10 +284,7 @@ export default function AdminCategoryPage() {
 
       {/* Toast */}
       {showToast && (
-        <div
-          className="toast show position-fixed bottom-0 end-0 m-3 bg-success text-white"
-          role="alert"
-        >
+        <div className="toast show position-fixed bottom-0 end-0 m-3 bg-success text-white" role="alert">
           <div className="toast-body">{toastMessage}</div>
         </div>
       )}

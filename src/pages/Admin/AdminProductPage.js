@@ -10,6 +10,7 @@ export default function AdminProductPage() {
   const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [brands, setBrands] = useState([]);
+  const [clothingTypes, setClothingTypes] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -24,6 +25,7 @@ export default function AdminProductPage() {
     description: "",
     categoryId: "",
     subCategoryId: "",
+    clothingTypeId: "",
     brandId: "",
     discount: 0,
     images: [],
@@ -35,7 +37,9 @@ export default function AdminProductPage() {
     ],
   });
 
+  // =========================
   // Fetch all products
+  // =========================
   const fetchProducts = async () => {
     try {
       const res = await API.get("/product/getProducts");
@@ -45,6 +49,27 @@ export default function AdminProductPage() {
       alert(err.response?.data?.message || "Error fetching products");
     }
   };
+
+  // =========================
+  // Fetch dropdowns
+  // =========================
+  const fetchDropdowns = async () => {
+    try {
+      const [catRes, brandRes] = await Promise.all([
+        API.get("/category"),
+        API.get("/brand/viewBrand"),
+      ]);
+      setCategories(catRes.data);
+      setBrands(brandRes.data);
+    } catch (err) {
+      console.error("Error fetching dropdown data:", err);
+      alert("Error fetching dropdown data");
+    }
+  };
+
+  // =========================
+  // Fetch subcategories by category
+  // =========================
   const fetchSubCategoriesByCategory = async (categoryId) => {
     if (!categoryId) {
       setSubCategories([]);
@@ -61,27 +86,27 @@ export default function AdminProductPage() {
     }
   };
 
-  // Fetch dropdown data
-  const fetchDropdowns = async () => {
+  // =========================
+  // Fetch clothing types by subcategory
+  // =========================
+  const fetchClothingTypesBySubCategory = async (subCategoryId) => {
     try {
-      const [catRes, brandRes] = await Promise.all([
-        API.get("/category"),
-        API.get("/brand/viewBrand"),
-      ]);
-      setCategories(catRes.data);
-      setBrands(brandRes.data);
-    } catch (err) {
-      console.error("Error fetching dropdown data:", err);
-      alert("Error fetching dropdown data");
+      const response = await API.get(`/product_type/subcategory/${subCategoryId}`);
+      setClothingTypes(response.data);
+    } catch (error) {
+      console.error("Error fetching clothing types:", error);
     }
   };
+
 
   useEffect(() => {
     fetchProducts();
     fetchDropdowns();
   }, []);
 
+  // =========================
   // Search filter
+  // =========================
   useEffect(() => {
     const filtered = products.filter((p) =>
       p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -89,7 +114,9 @@ export default function AdminProductPage() {
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
 
-  // Handle size change
+  // =========================
+  // Variant & Size handlers
+  // =========================
   const handleSizeChange = (variantIndex, sizeIndex, field, value) => {
     const newVariants = [...productData.variants];
     if (field === "stock" || field === "price") value = Number(value);
@@ -147,7 +174,9 @@ export default function AdminProductPage() {
     );
   };
 
-  // Add / Update product
+  // =========================
+  // Add / Update Product
+  // =========================
   const handleSubmit = async () => {
     try {
       const formData = new FormData();
@@ -155,19 +184,14 @@ export default function AdminProductPage() {
       formData.append("description", productData.description || "");
       formData.append("categoryId", productData.categoryId || "");
       formData.append("subCategoryId", productData.subCategoryId || "");
+      formData.append("clothingTypeId", productData.clothingTypeId);
       formData.append("brandId", productData.brandId || "");
       formData.append("discount", productData.discount || 0);
-
-      // ✅ add images to remove (stringified)
       formData.append(
         "imagesToRemove",
         JSON.stringify(productData.imagesToRemove || [])
       );
-
-      // ✅ new uploaded images
       productData.images.forEach((img) => formData.append("images", img));
-
-      // ✅ variants
       formData.append("variants", JSON.stringify(productData.variants));
 
       if (editingId) {
@@ -183,6 +207,7 @@ export default function AdminProductPage() {
         description: "",
         categoryId: "",
         subCategoryId: "",
+        clothingTypeId: "",
         brandId: "",
         discount: 0,
         images: [],
@@ -201,6 +226,9 @@ export default function AdminProductPage() {
     }
   };
 
+  // =========================
+  // Delete Product
+  // =========================
   const confirmDelete = (id, name) => {
     setDeleteId(id);
     setDeleteName(name);
@@ -222,35 +250,45 @@ export default function AdminProductPage() {
     }
   };
 
+  // =========================
+  // Edit Product
+  // =========================
   const handleEdit = (p) => {
     setProductData({
       name: p.name || "",
       description: p.description || "",
       categoryId: p.categoryId?._id || "",
       subCategoryId: p.subCategoryId?._id || "",
+      clothingTypeId: p.clothingTypeId?._id || "",
       brandId: p.brandId?._id || "",
       discount: p.discount || 0,
-      images: [], // for new uploads
-      existingImages: p.images || [], // ✅ already uploaded images
-      imagesToRemove: [], // ✅ track deleted ones
+      images: [],
+      existingImages: p.images || [],
+      imagesToRemove: [],
       variants:
         p.variants.length > 0
           ? p.variants.map((v) => ({
-              color: v.color || "",
-              sizes: v.sizes.map((s) => ({
-                size: s.size || "",
-                stock: s.stock || 0,
-                price: s.price || 0,
-              })),
-            }))
+            color: v.color || "",
+            sizes: v.sizes.map((s) => ({
+              size: s.size || "",
+              stock: s.stock || 0,
+              price: s.price || 0,
+            })),
+          }))
           : [{ color: "", sizes: [{ size: "", stock: 0, price: 0 }] }],
     });
 
     if (p.categoryId?._id) fetchSubCategoriesByCategory(p.categoryId._id);
+    if (p.subCategoryId?._id)
+      fetchClothingTypesBySubCategory(p.subCategoryId._id);
+
     setEditingId(p._id);
     setShowModal(true);
   };
 
+  // =========================
+  // Render
+  // =========================
   return (
     <div className="container my-4">
       {/* Header */}
@@ -272,6 +310,7 @@ export default function AdminProductPage() {
                 description: "",
                 categoryId: "",
                 subCategoryId: "",
+                clothingTypeId: "",
                 brandId: "",
                 discount: 0,
                 images: [],
@@ -297,6 +336,8 @@ export default function AdminProductPage() {
               <th>Images</th>
               <th>Name</th>
               <th>Category</th>
+              <th>SubCategory</th>
+              <th>Clothing Type</th>
               <th>Price</th>
               <th>Total Stock</th>
               <th>Actions</th>
@@ -324,6 +365,8 @@ export default function AdminProductPage() {
                 </td>
                 <td>{p.name}</td>
                 <td>{p.categoryId?.name || "No Category"}</td>
+                <td>{p.subCategoryId?.name || "No SubCategory"}</td>
+                <td>{p.clothingTypeId?.name || "No Type"}</td>
                 <td>{getPriceDisplay(p)}</td>
                 <td>
                   {getTotalStock(p)}
@@ -349,7 +392,7 @@ export default function AdminProductPage() {
             ))}
             {filteredProducts.length === 0 && (
               <tr>
-                <td colSpan={7} className="text-center text-muted">
+                <td colSpan={9} className="text-center text-muted">
                   No products found.
                 </td>
               </tr>
@@ -372,8 +415,8 @@ export default function AdminProductPage() {
                   {deleteId
                     ? "Delete Product"
                     : editingId
-                    ? "Edit Product"
-                    : "Add Product"}
+                      ? "Edit Product"
+                      : "Add Product"}
                 </h5>
                 <button
                   type="button"
@@ -433,9 +476,10 @@ export default function AdminProductPage() {
                           setProductData({
                             ...productData,
                             categoryId: selectedCategory,
-                            subCategoryId: "", // reset subcategory when category changes
+                            subCategoryId: "",
+                            clothingTypeId: "",
                           });
-                          fetchSubCategoriesByCategory(selectedCategory); // ✅ dynamically load
+                          fetchSubCategoriesByCategory(selectedCategory);
                         }}
                       >
                         <option value="">Select Category</option>
@@ -452,17 +496,41 @@ export default function AdminProductPage() {
                       <select
                         className="form-control"
                         value={productData.subCategoryId || ""}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const selectedSubCat = e.target.value;
                           setProductData({
                             ...productData,
-                            subCategoryId: e.target.value,
-                          })
-                        }
+                            subCategoryId: selectedSubCat,
+                            clothingTypeId: "",
+                          });
+                          fetchClothingTypesBySubCategory(selectedSubCat);
+                        }}
                       >
                         <option value="">Select SubCategory</option>
                         {subCategories.map((s) => (
                           <option key={s._id} value={s._id}>
                             {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Clothing Type */}
+                    <div className="mb-2">
+                      <select
+                        className="form-control"
+                        value={productData.clothingTypeId || ""}
+                        onChange={(e) =>
+                          setProductData({
+                            ...productData,
+                            clothingTypeId: e.target.value,
+                          })
+                        }
+                      >
+                        <option value="">Select Clothing Type</option>
+                        {clothingTypes.map((ct) => (
+                          <option key={ct._id} value={ct._id}>
+                            {ct.name}
                           </option>
                         ))}
                       </select>
@@ -505,60 +573,12 @@ export default function AdminProductPage() {
                             ...productData,
                             discount:
                               e.target.value === ""
-                                ? ""
+                                ? 0
                                 : Number(e.target.value),
                           })
                         }
                       />
                     </div>
-
-                    {/* Existing Images Section */}
-                    {editingId &&
-                      productData.existingImages &&
-                      productData.existingImages.length > 0 && (
-                        <div className="mb-3">
-                          <h6>Existing Images</h6>
-                          <div className="d-flex flex-wrap gap-2">
-                            {productData.existingImages.map((img, index) => (
-                              <div key={index} className="position-relative">
-                                <img
-                                  src={`http://localhost:5000/${img}`}
-                                  alt="product"
-                                  style={{
-                                    width: "80px",
-                                    height: "80px",
-                                    objectFit: "cover",
-                                    borderRadius: "8px",
-                                    border: "1px solid #ccc",
-                                  }}
-                                />
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-danger position-absolute top-0 end-0"
-                                  style={{ transform: "translate(30%, -30%)" }}
-                                  onClick={() => {
-                                    const updatedExisting =
-                                      productData.existingImages.filter(
-                                        (x) => x !== img
-                                      );
-                                    const removed = [
-                                      ...productData.imagesToRemove,
-                                      img,
-                                    ];
-                                    setProductData({
-                                      ...productData,
-                                      existingImages: updatedExisting,
-                                      imagesToRemove: removed,
-                                    });
-                                  }}
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
                     {/* Images */}
                     <div className="mb-2">
@@ -573,101 +593,144 @@ export default function AdminProductPage() {
                           })
                         }
                       />
+                      {productData.existingImages?.length > 0 && (
+                        <div className="mt-2 d-flex flex-wrap gap-2">
+                          {productData.existingImages.map((img, idx) => (
+                            <div key={idx} className="position-relative">
+                              <img
+                                src={`http://localhost:5000/${img}`}
+                                alt="existing"
+                                className="product-table-image"
+                              />
+                              <button
+                                type="button"
+                                className="btn-close position-absolute top-0 end-0"
+                                onClick={() => {
+                                  const imagesToRemove = [
+                                    ...(productData.imagesToRemove || []),
+                                    img,
+                                  ];
+                                  const remainingImages = productData.existingImages.filter(
+                                    (i) => i !== img
+                                  );
+                                  setProductData({
+                                    ...productData,
+                                    existingImages: remainingImages,
+                                    imagesToRemove,
+                                  });
+                                }}
+                              ></button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {/* Variants */}
                     <div className="mb-2">
-                      <h6>Variants</h6>
+                      <h6>Variants:</h6>
                       {productData.variants.map((v, vi) => (
-                        <div key={vi} className="mb-2 border p-2 rounded">
-                          <input
-                            type="text"
-                            placeholder="Color"
-                            className="form-control mb-1"
-                            value={v.color || ""}
-                            onChange={(e) => {
-                              const newVariants = [...productData.variants];
-                              newVariants[vi].color = e.target.value;
-                              setProductData({
-                                ...productData,
-                                variants: newVariants,
-                              });
-                            }}
-                          />
-                          {v.sizes.map((s, si) => (
-                            <div key={si} className="d-flex gap-1 mb-1">
-                              <input
-                                type="text"
-                                placeholder="Size"
-                                className="form-control"
-                                value={s.size || ""}
-                                onChange={(e) =>
-                                  handleSizeChange(
-                                    vi,
-                                    si,
-                                    "size",
-                                    e.target.value
-                                  )
-                                }
-                              />
-                              <input
-                                type="number"
-                                placeholder="Stock"
-                                className={`form-control ${
-                                  s.stock < 5 ? "border-danger" : ""
-                                }`}
-                                value={s.stock || ""}
-                                onChange={(e) =>
-                                  handleSizeChange(
-                                    vi,
-                                    si,
-                                    "stock",
-                                    e.target.value
-                                  )
-                                }
-                              />
-                              <input
-                                type="number"
-                                placeholder="Price"
-                                className="form-control"
-                                value={s.price || ""}
-                                onChange={(e) =>
-                                  handleSizeChange(
-                                    vi,
-                                    si,
-                                    "price",
-                                    e.target.value
-                                  )
-                                }
-                              />
+                        <div
+                          key={vi}
+                          className="border rounded p-2 mb-2 variant-block"
+                        >
+                          <div className="d-flex align-items-center mb-2">
+                            <input
+                              type="text"
+                              className="form-control me-2"
+                              placeholder="Color"
+                              value={v.color || ""}
+                              onChange={(e) => {
+                                const newVariants = [...productData.variants];
+                                newVariants[vi].color = e.target.value;
+                                setProductData({
+                                  ...productData,
+                                  variants: newVariants,
+                                });
+                              }}
+                            />
+                            {productData.variants.length > 1 && (
                               <button
                                 type="button"
-                                className="btn btn-danger btn-sm"
-                                onClick={() => removeSize(vi, si)}
+                                className="btn btn-outline-danger btn-sm"
+                                onClick={() => removeVariant(vi)}
                               >
-                                Remove Size
+                                Remove Variant
                               </button>
-                            </div>
-                          ))}
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-sm mb-1"
-                            onClick={() => addSize(vi)}
-                          >
-                            Add Size
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => removeVariant(vi)}
-                          >
-                            Remove Variant
-                          </button>
+                            )}
+                          </div>
+                          <div className="ms-2">
+                            {v.sizes.map((s, si) => (
+                              <div
+                                key={si}
+                                className="d-flex align-items-center gap-2 mb-1"
+                              >
+                                <input
+                                  type="text"
+                                  className="form-control"
+                                  placeholder="Size"
+                                  value={s.size || ""}
+                                  onChange={(e) =>
+                                    handleSizeChange(
+                                      vi,
+                                      si,
+                                      "size",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  placeholder="Stock"
+                                  value={s.stock}
+                                  onChange={(e) =>
+                                    handleSizeChange(
+                                      vi,
+                                      si,
+                                      "stock",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                                <input
+                                  type="number"
+                                  className="form-control"
+                                  placeholder="Price"
+                                  value={s.price}
+                                  onChange={(e) =>
+                                    handleSizeChange(
+                                      vi,
+                                      si,
+                                      "price",
+                                      e.target.value
+                                    )
+                                  }
+                                />
+                                {v.sizes.length > 1 && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline-danger btn-sm"
+                                    onClick={() => removeSize(vi, si)}
+                                  >
+                                    X
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              className="btn btn-outline-primary btn-sm mt-1"
+                              onClick={() => addSize(vi)}
+                            >
+                              Add Size
+                            </button>
+                          </div>
                         </div>
                       ))}
                       <button
                         type="button"
-                        className="btn btn-sidebar btn-sm"
+                        className="btn btn-outline-success btn-sm"
                         onClick={addVariant}
                       >
                         Add Variant
@@ -676,24 +739,35 @@ export default function AdminProductPage() {
                   </form>
                 )}
               </div>
-
               <div className="modal-footer">
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => {
-                    setShowModal(false);
-                    setDeleteId(null);
-                    setDeleteName("");
-                  }}
-                >
-                  {deleteId ? "No" : "Cancel"}
-                </button>
-                <button
-                  className={`btn ${deleteId ? "btn-danger" : "btn-sidebar"}`}
-                  onClick={deleteId ? handleDelete : handleSubmit}
-                >
-                  {deleteId ? "Yes" : editingId ? "Update" : "Add"}
-                </button>
+                {deleteId ? (
+                  <>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      className="btn btn-danger"
+                      onClick={handleDelete}
+                    >
+                      Delete
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      className="btn btn-secondary"
+                      onClick={() => setShowModal(false)}
+                    >
+                      Cancel
+                    </button>
+                    <button className="btn btn-primary" onClick={handleSubmit}>
+                      {editingId ? "Update" : "Add"} Product
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -702,8 +776,11 @@ export default function AdminProductPage() {
 
       {/* Toast */}
       {showToast && (
-        <div className="toast show position-fixed bottom-0 end-0 m-3">
-          <div className="toast-body bg-sidebar text-white">{toastMessage}</div>
+        <div
+          className="toast show position-fixed bottom-0 end-0 m-3"
+          role="alert"
+        >
+          <div className="toast-body">{toastMessage}</div>
         </div>
       )}
     </div>

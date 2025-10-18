@@ -40,6 +40,11 @@ export default function AdminHome() {
     },
     { name: "Manage Brands", path: "brands", icon: <FiTag /> },
     { name: "Manage Products", path: "products", icon: <FiPackage /> },
+    {
+      name: "Manage Clothing Types", // <-- New menu item
+      icon: <FiTag />,
+      path: "clothing-types",
+    },
     { name: "Orders", path: "orders", icon: <FiShoppingCart /> },
     { name: "Users", path: "users", icon: <FiUser /> },
   ];
