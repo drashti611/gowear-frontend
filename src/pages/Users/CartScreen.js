@@ -30,28 +30,41 @@ export default function CartScreen() {
     updateCart(updatedCart);
   };
 
-  // Subtotal calculation
-  const totalPrice = cart.reduce((acc, item) => {
+  // Total items
+  const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  // Total MRP (sum of original prices × quantity)
+  const totalMRP = cart.reduce((acc, item) => {
     const basePrice =
       item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]?.price ||
       item.price ||
       0;
-    const discountedPrice = item.discount
-      ? basePrice - (basePrice * item.discount) / 100
-      : basePrice;
-    return acc + discountedPrice * item.quantity;
+    return acc + basePrice * item.quantity;
   }, 0);
+
+  // Total discount on MRP
+  const totalDiscount = cart.reduce((acc, item) => {
+    const basePrice =
+      item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]?.price ||
+      item.price ||
+      0;
+    const discountAmount = item.discount ? (basePrice * item.discount) / 100 : 0;
+    return acc + discountAmount * item.quantity;
+  }, 0);
+
+  // Total amount after discount
+  const totalAmount = totalMRP - totalDiscount;
 
   // Shipping calculation
   const freeShippingThreshold = 3000;
-  const shipping = totalPrice >= freeShippingThreshold ? 0 : 100;
-  const finalTotal = totalPrice + shipping;
+  const shipping = totalAmount >= freeShippingThreshold ? 0 : 100;
+  const finalTotal = totalAmount + shipping;
 
   // Amount left for free shipping
   const amountForFreeShipping =
-    totalPrice >= freeShippingThreshold
+    totalAmount >= freeShippingThreshold
       ? 0
-      : freeShippingThreshold - totalPrice;
+      : freeShippingThreshold - totalAmount;
 
   if (cart.length === 0)
     return <div className="cart-empty">Your cart is empty.</div>;
@@ -86,11 +99,11 @@ export default function CartScreen() {
                 <div className="cart-price">
                   {item.discount > 0 ? (
                     <>
-                      <span className="cart-price-discounted">₹{discountedPrice}</span>
-                      <span className="cart-price-original">₹{basePrice}</span>
+                      <span className="cart-price-discounted">₹{discountedPrice.toFixed(2)}</span>
+                      <span className="cart-price-original">₹{basePrice.toFixed(2)}</span>
                     </>
                   ) : (
-                    <span className="cart-price-discounted">₹{basePrice}</span>
+                    <span className="cart-price-discounted">₹{basePrice.toFixed(2)}</span>
                   )}
                 </div>
                 <div className="cart-qty">
@@ -102,7 +115,7 @@ export default function CartScreen() {
                     onChange={(e) => handleQuantityChange(item._id, e.target.value)}
                   />
                 </div>
-                
+               
               </div>
               <button
                 className="cart-remove-btn"
@@ -128,13 +141,25 @@ export default function CartScreen() {
 
           {amountForFreeShipping > 0 && (
             <div className="free-shipping-msg">
-              Add ₹{amountForFreeShipping} more to get Free Shipping!
+              Add ₹{amountForFreeShipping.toFixed(2)} more to get Free Shipping!
             </div>
           )}
 
           <div className="cart-summary-row">
-            <span>Subtotal</span>
-            <span>₹{totalPrice}</span>
+            <span>Total Items</span>
+            <span>{totalItems}</span>
+          </div>
+          <div className="cart-summary-row">
+            <span>Total MRP</span>
+            <span>₹{totalMRP.toFixed(2)}</span>
+          </div>
+          <div className="cart-summary-row">
+            <span>Discount on MRP</span>
+            <span>₹{totalDiscount.toFixed(2)}</span>
+          </div>
+          <div className="cart-summary-row total">
+            <span>Total Amount</span>
+            <span>₹{totalAmount.toFixed(2)}</span>
           </div>
           <div className="cart-summary-row">
             <span>Shipping</span>
@@ -143,9 +168,10 @@ export default function CartScreen() {
             </span>
           </div>
           <div className="cart-summary-row total">
-            <span>Total</span>
-            <span>₹{finalTotal}</span>
+            <span>Final Total</span>
+            <span>₹{finalTotal.toFixed(2)}</span>
           </div>
+
           <button
             className="cart-checkout-btn"
             onClick={() => navigate("/checkout")}
