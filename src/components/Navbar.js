@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import API from "../api/axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../css/Navbar.css";
+import { FaUserCircle } from "react-icons/fa";
 
 export default function Navbar() {
   const navigate = useNavigate();
@@ -14,7 +15,11 @@ export default function Navbar() {
   const [locationError, setLocationError] = useState(null);
   const [categories, setCategories] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [cartCount, setCartCount] = useState(0);
+  const [likeCount, setLikeCount] = useState(0);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
 
+  // Detect city
   useEffect(() => {
     if (!navigator.geolocation) return setLocationError("Geolocation not supported");
     navigator.geolocation.getCurrentPosition(
@@ -25,9 +30,7 @@ export default function Navbar() {
             `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}`
           );
           const data = await res.json();
-          setCity(
-            data.address.city || data.address.town || data.address.village || "Unknown location"
-          );
+          setCity(data.address.city || "Unknown location");
         } catch {
           setLocationError("Unable to detect city");
         }
@@ -37,6 +40,7 @@ export default function Navbar() {
     );
   }, []);
 
+  // Fetch categories
   useEffect(() => {
     const fetchCategories = async () => {
       try {
@@ -49,89 +53,97 @@ export default function Navbar() {
     fetchCategories();
   }, []);
 
+  // Update cart & likes count
+  useEffect(() => {
+    const updateCart = () => setCartCount(JSON.parse(localStorage.getItem("cart"))?.length || 0);
+    const updateLikes = () => setLikeCount(JSON.parse(localStorage.getItem("likedProducts"))?.length || 0);
+    updateCart();
+    updateLikes();
+    window.addEventListener("storage", updateCart);
+    window.addEventListener("storage", updateLikes);
+    return () => {
+      window.removeEventListener("storage", updateCart);
+      window.removeEventListener("storage", updateLikes);
+    };
+  }, []);
+
   if (location.pathname.startsWith("/admin")) return null;
 
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
+    setShowProfileMenu(false);
     navigate("/login");
   };
 
   const homeLink = role === "admin" ? "/admin/home" : "/";
 
   return (
-    <nav className="navbar navbar-expand-lg sticky-top navbar-dark premium-navbar">
+    <nav className="navbar navbar-expand-lg sticky-top navbar-light sleek-navbar">
       <div className="container-fluid">
-        {/* Brand */}
-        <span
-          className="navbar-brand premium-brand"
-          onClick={() => navigate(homeLink)}
-        >
+        <span className="navbar-brand sleek-brand" onClick={() => navigate(homeLink)}>
           GoWear
         </span>
 
-        {/* Mobile toggle */}
         <button
           className="navbar-toggler"
           type="button"
           data-bs-toggle="collapse"
           data-bs-target="#navbarContent"
-          aria-controls="navbarContent"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
         >
           <span className="navbar-toggler-icon"></span>
         </button>
 
         <div className="collapse navbar-collapse" id="navbarContent">
-          {/* Categories */}
-          <ul className="navbar-nav me-auto mb-2 mb-lg-0 flex-row flex-wrap category-scroll">
+          <ul className="navbar-nav me-auto mb-2 mb-lg-0 sleek-categories">
             {categories.map((cat) => (
-              <li
-                key={cat._id}
-                className="nav-item me-3"
-                onClick={() => navigate(`/category/${cat._id}`)}
-              >
-                <span className="nav-link category-link">
-                  {cat.name.charAt(0).toUpperCase() + cat.name.slice(1)}
-                </span>
+              <li key={cat._id} className="nav-item" onClick={() => navigate(`/category/${cat._id}`)}>
+                <span className="nav-link">{cat.name}</span>
               </li>
             ))}
           </ul>
 
-          {/* Right side */}
-          <div className="d-flex align-items-center mt-2 mt-lg-0">
-            {/* Location */}
-            <span className="nav-location me-3">
-              {city ? `Delivering to ${city}` : locationError || "Detecting location..."}
-            </span>
+          <div className="d-flex align-items-center sleek-right">
+            <span className="nav-location">{city || locationError || "Detecting location..."}</span>
 
-            {/* Modern Search */}
-            <div className="search-container me-3">
+            <div className="search-wrapper">
               <input
                 type="text"
-                className="search-input"
                 placeholder="Search products..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
+                className="sleek-search"
               />
               <span className="search-icon">🔍</span>
             </div>
 
-            {/* Cart */}
-            <span className="cart-icon me-3">
-              🛒 <span className="cart-badge">0</span>
+            <span className="icon" onClick={() => navigate("/likes")}>
+              ❤️ {likeCount > 0 && <span className="icon-badge">{likeCount}</span>}
             </span>
 
-            {/* Login/Logout */}
+            <span className="icon" onClick={() => navigate("/cart")}>
+              🛒 {cartCount > 0 && <span className="icon-badge">{cartCount}</span>}
+            </span>
+
             {!token ? (
-              <button className="btn login-link" onClick={() => navigate("/login")}>
-                Login
-              </button>
+              <button className="btn sleek-btn-login" onClick={() => navigate("/login")}>Login</button>
             ) : (
-              <button className="btn logout-btn" onClick={logout}>
-                Logout
-              </button>
+              <div className="profile-wrapper">
+                <FaUserCircle
+                  size={28}
+                  className="profile-icon"
+                  onClick={() => setShowProfileMenu(!showProfileMenu)}
+                />
+                {showProfileMenu && (
+                  <div className="profile-dropdown">
+                    <ul>
+                      <li onClick={() => { navigate("/profile"); setShowProfileMenu(false); }}>Profile</li>
+                      <li onClick={() => { navigate("/orders"); setShowProfileMenu(false); }}>My Orders</li>
+                      <li onClick={logout}>Logout</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

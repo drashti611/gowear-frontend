@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import API from "../../api/axios";
+import { useParams, useNavigate } from "react-router-dom";
 import { FaHeart, FaShoppingCart } from "react-icons/fa";
+import API from "../../api/axios";
 import "../../css/Customercss/ProductDetailScreen.css";
 
 export default function ProductDetailScreen() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [selectedColor, setSelectedColor] = useState("");
@@ -25,8 +26,11 @@ export default function ProductDetailScreen() {
         setProduct(res.data);
         setSelectedColor(res.data.variants?.[0]?.color || "");
         setMainImage(res.data.images?.[0] || "");
+
+        const likedItems = JSON.parse(localStorage.getItem("likedProducts")) || [];
+        setLiked(likedItems.some((p) => p._id === res.data._id));
       } catch (err) {
-        console.error("Error fetching product:", err);
+        console.error(err);
       } finally {
         setLoading(false);
       }
@@ -35,11 +39,52 @@ export default function ProductDetailScreen() {
     fetchProduct();
   }, [id]);
 
-  const handleLike = () => setLiked((prev) => !prev);
-
   const handleAddToCart = () => {
-    setToast(`Added "${product.name}" to cart!`);
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please login to add products to cart.");
+      navigate("/login");
+      return;
+    }
+
+    let cart = JSON.parse(localStorage.getItem("cart")) || [];
+    const existing = cart.find((item) => item._id === product._id);
+
+    if (!existing) {
+      cart.push({ ...product, selectedColor, quantity: 1 });
+      localStorage.setItem("cart", JSON.stringify(cart));
+      setToast(`Added "${product.name}" to cart!`);
+    } else {
+      setToast(`"${product.name}" is already in cart!`);
+    }
+
+    window.dispatchEvent(new Event("storage")); // update navbar
     setTimeout(() => setToast(""), 2000);
+  };
+
+  const handleLike = () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please login to like products.");
+      navigate("/login");
+      return;
+    }
+
+    let likedItems = JSON.parse(localStorage.getItem("likedProducts")) || [];
+    const isLiked = likedItems.some((p) => p._id === product._id);
+
+    if (!isLiked) {
+      likedItems.push(product);
+      setLiked(true);
+      localStorage.setItem("likedProducts", JSON.stringify(likedItems));
+      window.dispatchEvent(new Event("storage"));
+      navigate("/likes"); // go to likes screen
+    } else {
+      likedItems = likedItems.filter((p) => p._id !== product._id);
+      setLiked(false);
+      localStorage.setItem("likedProducts", JSON.stringify(likedItems));
+      window.dispatchEvent(new Event("storage"));
+    }
   };
 
   if (loading)

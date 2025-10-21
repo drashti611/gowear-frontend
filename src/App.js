@@ -16,6 +16,8 @@ import SubCategoryScreen from "./pages/Users/SubCategoryScreen";
 import ProductByCategoryScreen from "./pages/Users/ProductByCategoryScreen";
 import ProductDetailScreen from "./pages/Users/ProductDetailScreen";
 import AdminClothingTypePage from "./pages/Admin/AdminClothingTypePage";
+import CartScreen from "./pages/Users/CartScreen";
+import LikesScreen from "./pages/Users/LikesScreen";
 
 function App() {
   return (
@@ -31,7 +33,8 @@ function App() {
         <Route path="/category/:id" element={<SubCategoryScreen />} />
         <Route path="/products/:subCategoryId" element={<ProductByCategoryScreen />} />
         <Route path="/productdetail/:id" element={<ProductDetailScreen />} />
-
+        <Route path="/cart" element={<CartScreen />} />
+ <Route path="/likes" element={<LikesScreen />} />
         {/* Admin Routes with nested structure */}
         <Route
           path="/admin/home"

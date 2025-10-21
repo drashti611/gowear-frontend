@@ -19,13 +19,13 @@ export default function Login() {
       // Save token
       localStorage.setItem("token", res.data.token);
 
-      // Decode token to get role
+      // Decode token to get role and userId
       const decoded = jwt_decode(res.data.token);
       localStorage.setItem("role", decoded.role);
+      localStorage.setItem("userId", decoded.id); // for per-user cart/likes
 
       alert("Login successful!");
 
-      // Redirect based on role
       if (decoded.role === "admin") {
         navigate("/admin/home"); 
       } else {
@@ -69,7 +69,7 @@ export default function Login() {
             />
           </div>
 
-           <button type="submit" className="btn btn-success w-100 mb-3">
+          <button type="submit" className="btn btn-success w-100 mb-3">
             Login
           </button>
         </form>
@@ -82,4 +82,14 @@ export default function Login() {
       </div>
     </div>
   );
+}
+
+// Logout helper function
+export function logout() {
+  localStorage.removeItem("token");
+  localStorage.removeItem("role");
+  localStorage.removeItem("userId");
+  localStorage.removeItem("cart");
+  localStorage.removeItem("likedProducts");
+  window.dispatchEvent(new Event("storage")); // update Navbar
 }
