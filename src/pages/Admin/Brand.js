@@ -8,8 +8,9 @@ export default function Brand() {
   const [brands, setBrands] = useState([]);
   const [filteredBrands, setFilteredBrands] = useState([]);
   const [name, setName] = useState("");
-  const [image, setImage] = useState(null); // single image
-  const [existingImage, setExistingImage] = useState(null);
+  const [image, setImage] = useState(null); // new image file (if chosen)
+  const [existingImage, setExistingImage] = useState(null); // path string from backend (e.g. "uploads/xxx.jpg")
+  const [originalImage, setOriginalImage] = useState(null); // remember original image when entering edit
   const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
@@ -43,7 +44,12 @@ export default function Brand() {
 
   // Handle image selection
   const handleImageChange = (e) => {
-    setImage(e.target.files[0]);
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      // If picking a new file while editing, hide existing server preview so UI shows local preview
+      setImage(file);
+      setExistingImage(null);
+    }
   };
 
   const removeNewImage = () => setImage(null);
@@ -54,32 +60,43 @@ export default function Brand() {
     if (!name) return alert("Enter brand name");
 
     const formData = new FormData();
+    formData.append("type", "brand");
     formData.append("name", name);
+
+    // Append image file only if user selected new file
     if (image) formData.append("image", image);
+
+    // If editing and original image existed but user removed it (and not uploading new one)
+    if (editingId) {
+      // If originalImage was present and existingImage is now null and no new file -> request removal
+      if (originalImage && !existingImage && !image) {
+        formData.append("removeImage", "true");
+      }
+    }
 
     try {
       if (editingId) {
-        await API.put(`/brand/update/${editingId}`, formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        // Important: do NOT set Content-Type header; let browser set boundary
+        await API.put(`/brand/update/${editingId}`, formData);
         setToastMessage(`Brand "${name}" updated successfully!`);
       } else {
-        await API.post("/brand/addBrand", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+        await API.post("/brand/addBrand", formData);
         setToastMessage(`Brand "${name}" added successfully!`);
       }
 
+      // reset form state
       setName("");
       setImage(null);
       setExistingImage(null);
+      setOriginalImage(null);
       setEditingId(null);
       setShowModal(false);
       fetchBrands();
       setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
-      alert(err.response?.data?.message || "Error saving brand");
+      console.error("Save error:", err, err.response?.data);
+      alert(err.response?.data?.message || err.message || "Error saving brand");
     }
   };
 
@@ -105,11 +122,12 @@ export default function Brand() {
     }
   };
 
-  // Edit brand
+  // Edit brand: populate form and keep reference to original image
   const handleEdit = (brand) => {
     setName(brand.name);
     setEditingId(brand._id);
-    setExistingImage(brand.images?.[0] || null);
+    setExistingImage(brand.images?.[0] || null); // displayed image path (relative)
+    setOriginalImage(brand.images?.[0] || null); // remember what came from server
     setImage(null);
     setShowModal(true);
   };
@@ -133,6 +151,7 @@ export default function Brand() {
               setName("");
               setImage(null);
               setExistingImage(null);
+              setOriginalImage(null);
               setEditingId(null);
               setShowModal(true);
             }}
@@ -238,9 +257,12 @@ export default function Brand() {
                       onChange={(e) => setName(e.target.value)}
                     />
 
-                    {/* Existing image */}
+                    {/* Existing image (from server) */}
                     {existingImage && (
-                      <div className="mb-3 position-relative" style={{ display: "inline-block" }}>
+                      <div
+                        className="mb-3 position-relative"
+                        style={{ display: "inline-block" }}
+                      >
                         <img
                           src={`http://localhost:5000/${existingImage}`}
                           alt="brand"
@@ -253,15 +275,22 @@ export default function Brand() {
                         />
                         <FaTimes
                           className="position-absolute top-0 end-0 text-danger"
-                          style={{ cursor: "pointer", background: "white", borderRadius: "50%" }}
+                          style={{
+                            cursor: "pointer",
+                            background: "white",
+                            borderRadius: "50%",
+                          }}
                           onClick={removeExistingImage}
                         />
                       </div>
                     )}
 
-                    {/* New image */}
+                    {/* New image preview (local file) */}
                     {image && (
-                      <div className="mb-3 position-relative" style={{ display: "inline-block" }}>
+                      <div
+                        className="mb-3 position-relative"
+                        style={{ display: "inline-block" }}
+                      >
                         <img
                           src={URL.createObjectURL(image)}
                           alt="brand"
@@ -274,7 +303,11 @@ export default function Brand() {
                         />
                         <FaTimes
                           className="position-absolute top-0 end-0 text-danger"
-                          style={{ cursor: "pointer", background: "white", borderRadius: "50%" }}
+                          style={{
+                            cursor: "pointer",
+                            background: "white",
+                            borderRadius: "50%",
+                          }}
                           onClick={removeNewImage}
                         />
                       </div>
@@ -284,6 +317,7 @@ export default function Brand() {
                       type="file"
                       className="form-control"
                       onChange={handleImageChange}
+                      accept="image/*"
                     />
                   </>
                 )}
@@ -291,7 +325,9 @@ export default function Brand() {
               <div className="modal-footer">
                 <button
                   className="btn btn-secondary"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => {
+                    setShowModal(false);
+                  }}
                 >
                   {deleteId ? "No" : "Cancel"}
                 </button>

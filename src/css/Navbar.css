@@ -129,3 +129,182 @@
   .sleek-search { width: 100px; }
   .sleek-categories .nav-link { margin-right: 0.5rem; padding: 0.2rem 0.4rem; }
 }
+
+
+/* dropdown container */
+.dropdown-cat { position: relative; }
+
+/* big dropdown panel */
+.category-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 999;
+  display: flex;
+  background: white;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  padding: 12px;
+  min-width: 480px;
+  gap: 12px;
+}
+
+/* columns */
+.subcategory-column, .producttype-column {
+  min-width: 200px;
+  max-height: 320px;
+  overflow: auto;
+}
+
+/* titles */
+.dropdown-title {
+  font-size: 12px;
+  color: #666;
+  margin: 0 0 8px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* items */
+.subcategory-item, .producttype-item {
+  padding: 8px 10px;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 6px;
+}
+.subcategory-item:hover, .producttype-item:hover, .subcategory-item.active {
+  background: rgba(0,0,0,0.04);
+}
+
+/* empty/hint */
+.dropdown-empty, .dropdown-hint {
+  padding: 8px 10px;
+  color: #999;
+  font-size: 13px;
+}
+
+/* adapt for small screens */
+@media (max-width: 768px) {
+  .category-dropdown { position: static; box-shadow: none; border: none; padding: 8px 0; min-width: auto; flex-direction: column; }
+}
+
+
+
+/* mega menu basics */
+.mega-cat { position: relative; }
+.mega-panel {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;              /* full width */
+  z-index: 1000;
+  background: #fff;
+  border-top: 1px solid #e6e6e6;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.06);
+  padding: 26px 36px;
+  display: flex;
+  gap: 28px;
+  align-items: flex-start;
+  box-sizing: border-box;
+}
+
+/* hero / left column */
+.mega-hero { width: 220px; flex: 0 0 220px; display:flex; flex-direction:column; gap:12px; }
+.mega-hero-img {
+  width: 100%;
+  height: 260px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+}
+.mega-hero-placeholder {
+  font-weight: 700;
+  font-size: 18px;
+  color: #222;
+  padding: 6px 0;
+}
+
+/* columns area: flexible number of columns */
+.mega-columns {
+  display: flex;
+  gap: 36px;
+  flex: 1 1 auto;
+  align-items: flex-start;
+}
+
+/* single column inside mega */
+.mega-column { min-width: 180px; max-width: 220px; }
+.mega-col-heading {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  color: #111;
+}
+.mega-col-list { list-style: none; padding: 0; margin: 0; }
+.mega-col-item {
+  color: #777;
+  font-size: 13px;
+  padding: 6px 0;
+  cursor: pointer;
+  white-space: nowrap;
+  border-radius: 4px;
+}
+.mega-col-item:hover { color: #000; background: rgba(0,0,0,0.03); }
+
+/* subtle separators like Westside lines under nav */
+.navbar { border-bottom: 1px solid #f0f0f0; }
+
+/* responsive: stack the mega panel on mobile */
+@media (max-width: 992px) {
+  .mega-panel { position: static; box-shadow: none; padding: 12px; flex-direction: column; gap: 14px; }
+  .mega-hero { width: 100%; flex: none; }
+  .mega-hero-img { height: 180px; }
+  .mega-columns { flex-direction: row; flex-wrap: wrap; gap: 16px; }
+  .mega-column { min-width: 140px; max-width: 45%; }
+}
+
+
+/* On mobile, make each mega-column collapsible (we add .mobile-open to expanded one) */
+@media (max-width: 992px) {
+  .mega-column { max-height: 0; overflow: hidden; transition: max-height 280ms ease; }
+  .mega-column.mobile-open { max-height: 400px; /* big enough to show list */ }
+
+  /* make heading look tappable */
+  .mega-col-heading { display: flex; justify-content: space-between; align-items: center; }
+  .mega-col-heading::after {
+    content: "▸";
+    font-size: 12px;
+    margin-left: 8px;
+    transform: rotate(0deg);
+    transition: transform 180ms;
+  }
+  .mega-column.mobile-open .mega-col-heading::after { transform: rotate(90deg); }
+}
+/* Loading hints inside mega */
+.mega-loading {
+  padding: 12px 18px;
+  color: #666;
+  font-size: 14px;
+}
+
+/* On mobile, make each mega-column collapsible (we add .mobile-open to expanded one) */
+@media (max-width: 992px) {
+  .mega-column { max-height: 0; overflow: hidden; transition: max-height 280ms ease; }
+  .mega-column.mobile-open { max-height: 400px; /* big enough to show list */ }
+
+  /* make heading look tappable */
+  .mega-col-heading { display: flex; justify-content: space-between; align-items: center; background: transparent; border: none; width: 100%; text-align: left; padding: 6px 0; cursor: pointer; }
+  .mega-col-heading::after {
+    content: "▸";
+    font-size: 12px;
+    margin-left: 8px;
+    transform: rotate(0deg);
+    transition: transform 180ms;
+  }
+  .mega-column.mobile-open .mega-col-heading::after { transform: rotate(90deg); }
+
+  /* ensure mega-panel stacks neatly */
+  .mega-panel { flex-direction: column; padding: 12px; gap: 10px; }
+  .mega-hero { width: 100%; }
+}

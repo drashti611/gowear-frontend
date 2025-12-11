@@ -1,22 +1,22 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/axios";
 import "bootstrap/dist/css/bootstrap.min.css";
-import "../../css/AdminCss/AdminProductPage.css"; // Reuse existing CSS
-import { FaEdit, FaTrash } from "react-icons/fa";
+import "../../css/AdminCss/AdminProductPage.css";
+import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
 
 export default function AdminClothingTypePage() {
   const [clothingTypes, setClothingTypes] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
   const [name, setName] = useState("");
   const [subCategoryId, setSubCategoryId] = useState("");
+  const [image, setImage] = useState(null); // local File selected
+  const [existingImage, setExistingImage] = useState(null); // server image path string (e.g. "/uploads/...")
   const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  // =========================
   // Fetch all clothing types
-  // =========================
   const fetchClothingTypes = async () => {
     try {
       const res = await API.get("/product_type");
@@ -27,9 +27,7 @@ export default function AdminClothingTypePage() {
     }
   };
 
-  // =========================
-  // Fetch all subcategories
-  // =========================
+  // Fetch subcategories
   const fetchSubCategories = async () => {
     try {
       const res = await API.get("/subCategory/viewSubCategory");
@@ -45,45 +43,73 @@ export default function AdminClothingTypePage() {
     fetchSubCategories();
   }, []);
 
-  // =========================
+  // When user selects a file: preview local and hide server preview
+  const handleImageChange = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      setImage(e.target.files[0]);
+      setExistingImage(null); // show local preview instead of server image
+    }
+  };
+
+  const removeNewImage = () => setImage(null);
+  // Note: backend doesn't support removing image without uploading new one.
+  // So "remove existing" here just hides preview; if you want server deletion without upload,
+  // backend must be extended to support a removeImage flag.
+
   // Add or update clothing type
-  // =========================
   const handleSubmit = async () => {
     if (!name || !subCategoryId) return alert("Name and Subcategory required");
+
     try {
+      const formData = new FormData();
+      formData.append("type", "clothingType");
+      formData.append("name", name);
+      formData.append("subCategoryId", subCategoryId);
+      // append image only if user selected a new file
+      if (image) formData.append("image", image);
+
       if (editingId) {
-        await API.put(`/product_type/${editingId}`, { name, subCategoryId });
+        // endpoint: PUT /product_type/update/:id
+        await API.put(`/product_type/update/${editingId}`, formData);
         setToastMessage(`Clothing type "${name}" updated successfully!`);
       } else {
-        await API.post("/product_type/addProductType", { name, subCategoryId });
+        // endpoint: POST /product_type/addProductType
+        await API.post("/product_type/addProductType", formData);
         setToastMessage(`Clothing type "${name}" added successfully!`);
       }
+
+      // reset
       setName("");
       setSubCategoryId("");
+      setImage(null);
+      setExistingImage(null);
       setEditingId(null);
       setShowModal(false);
       setShowToast(true);
       fetchClothingTypes();
       setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
-      console.error(err);
-      alert("Error saving clothing type");
+      console.error("Save error:", err, err.response?.data);
+      alert(
+        err.response?.data?.message ||
+          err.message ||
+          "Error saving clothing type"
+      );
     }
   };
 
-  // =========================
   // Edit a clothing type
-  // =========================
   const handleEdit = (type) => {
     setName(type.name);
     setSubCategoryId(type.subCategoryId?._id || "");
     setEditingId(type._id);
+    // show server image preview when editing (if present)
+    setExistingImage(type.images?.[0] || null);
+    setImage(null);
     setShowModal(true);
   };
 
-  // =========================
   // Delete a clothing type
-  // =========================
   const handleDelete = async (type) => {
     if (!window.confirm(`Are you sure to delete "${type.name}"?`)) return;
     try {
@@ -98,6 +124,17 @@ export default function AdminClothingTypePage() {
     }
   };
 
+  // Helper to build full image URL (backend stores path with leading slash)
+  const fullImageUrl = (imgPath) => {
+    if (!imgPath) return null;
+    // If imgPath already starts with http, return as is
+    if (imgPath.startsWith("http")) return imgPath;
+    // otherwise prefix server host
+    return `http://localhost:5000${
+      imgPath.startsWith("/") ? imgPath : `/${imgPath}`
+    }`;
+  };
+
   return (
     <div className="container my-4">
       {/* Header */}
@@ -108,6 +145,8 @@ export default function AdminClothingTypePage() {
           onClick={() => {
             setName("");
             setSubCategoryId("");
+            setImage(null);
+            setExistingImage(null);
             setEditingId(null);
             setShowModal(true);
           }}
@@ -116,7 +155,7 @@ export default function AdminClothingTypePage() {
         </button>
       </div>
 
-      {/* Clothing Types Table */}
+      {/* Table */}
       <div className="table-responsive">
         <table className="table table-bordered table-hover">
           <thead className="table-dark">
@@ -124,6 +163,7 @@ export default function AdminClothingTypePage() {
               <th>#</th>
               <th>Name</th>
               <th>SubCategory</th>
+              <th>Image</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -133,6 +173,22 @@ export default function AdminClothingTypePage() {
                 <td>{index + 1}</td>
                 <td>{type.name}</td>
                 <td>{type.subCategoryId?.name || "N/A"}</td>
+                <td style={{ width: 80 }}>
+                  {type.images?.[0] ? (
+                    <img
+                      src={fullImageUrl(type.images[0])}
+                      alt={type.name}
+                      style={{
+                        width: 50,
+                        height: 50,
+                        objectFit: "cover",
+                        borderRadius: 4,
+                      }}
+                    />
+                  ) : (
+                    <span className="text-muted">No Image</span>
+                  )}
+                </td>
                 <td>
                   <button
                     className="btn btn-outline-warning btn-sm me-1"
@@ -151,7 +207,7 @@ export default function AdminClothingTypePage() {
             ))}
             {clothingTypes.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-center text-muted">
+                <td colSpan={5} className="text-center text-muted">
                   No clothing types found.
                 </td>
               </tr>
@@ -170,7 +226,9 @@ export default function AdminClothingTypePage() {
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header bg-sidebar text-white">
-                <h5 className="modal-title">{editingId ? "Edit Clothing Type" : "Add Clothing Type"}</h5>
+                <h5 className="modal-title">
+                  {editingId ? "Edit Clothing Type" : "Add Clothing Type"}
+                </h5>
                 <button
                   type="button"
                   className="btn-close"
@@ -187,6 +245,7 @@ export default function AdminClothingTypePage() {
                     onChange={(e) => setName(e.target.value)}
                   />
                 </div>
+
                 <div className="mb-2">
                   <select
                     className="form-control"
@@ -201,7 +260,86 @@ export default function AdminClothingTypePage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Existing server image preview */}
+                {existingImage && (
+                  <div className="mb-2">
+                    <div
+                      style={{ display: "inline-block", position: "relative" }}
+                    >
+                      <img
+                        src={fullImageUrl(existingImage)}
+                        alt="existing"
+                        style={{
+                          width: 80,
+                          height: 80,
+                          objectFit: "cover",
+                          borderRadius: 5,
+                        }}
+                      />
+                      <FaTimes
+                        onClick={() => setExistingImage(null)}
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          background: "white",
+                          borderRadius: "50%",
+                          padding: 2,
+                          cursor: "pointer",
+                          color: "red",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* New image preview */}
+                {image && (
+                  <div className="mb-2">
+                    <div
+                      style={{ display: "inline-block", position: "relative" }}
+                    >
+                      <img
+                        src={URL.createObjectURL(image)}
+                        alt="preview"
+                        style={{
+                          width: 80,
+                          height: 80,
+                          objectFit: "cover",
+                          borderRadius: 5,
+                        }}
+                      />
+                      <FaTimes
+                        onClick={removeNewImage}
+                        style={{
+                          position: "absolute",
+                          top: -8,
+                          right: -8,
+                          background: "white",
+                          borderRadius: "50%",
+                          padding: 2,
+                          cursor: "pointer",
+                          color: "red",
+                        }}
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div className="mb-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="form-control"
+                    onChange={handleImageChange}
+                  />
+                  <small className="text-muted">
+                    Select image to upload (optional)
+                  </small>
+                </div>
               </div>
+
               <div className="modal-footer">
                 <button
                   className="btn btn-secondary"
@@ -220,7 +358,10 @@ export default function AdminClothingTypePage() {
 
       {/* Toast */}
       {showToast && (
-        <div className="toast show position-fixed bottom-0 end-0 m-3" role="alert">
+        <div
+          className="toast show position-fixed bottom-0 end-0 m-3"
+          role="alert"
+        >
           <div className="toast-body">{toastMessage}</div>
         </div>
       )}

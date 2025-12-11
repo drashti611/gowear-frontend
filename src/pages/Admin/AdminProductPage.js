@@ -180,6 +180,7 @@ export default function AdminProductPage() {
   const handleSubmit = async () => {
     try {
       const formData = new FormData();
+      formData.append("type","product");
       formData.append("name", productData.name || "");
       formData.append("description", productData.description || "");
       formData.append("categoryId", productData.categoryId || "");

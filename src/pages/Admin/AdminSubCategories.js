@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import API from "../../api/axios";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/AdminCss/AdminCategoryPage.css";
@@ -9,9 +9,10 @@ export default function AdminSubCategoryPage() {
   const [categories, setCategories] = useState([]);
   const [filteredSubCategories, setFilteredSubCategories] = useState([]);
   const [name, setName] = useState("");
-  const [categoryIds, setCategoryIds] = useState([]); // ✅ multiple categories
-  const [image, setImage] = useState(null);
-  const [existingImage, setExistingImage] = useState(null);
+  const [categoryIds, setCategoryIds] = useState([]);
+  const [image, setImage] = useState({}); // new file per categoryId
+  const [existingImage, setExistingImage] = useState({}); // { categoryId: { _id, path } }
+  const [removedImageIds, setRemovedImageIds] = useState([]); // list of existing image _id to remove
   const [editingId, setEditingId] = useState(null);
   const [deleteId, setDeleteId] = useState(null);
   const [deleteName, setDeleteName] = useState("");
@@ -20,11 +21,14 @@ export default function AdminSubCategoryPage() {
   const [toastMessage, setToastMessage] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
 
+  // keep reference of initial existing images to detect removals (optional)
+  const initialExistingRef = useRef({});
+
   // Fetch categories
   const fetchCategories = async () => {
     try {
       const res = await API.get("/category");
-      setCategories(res.data);
+      setCategories(res.data || []);
     } catch (err) {
       alert(err.response?.data?.message || "Error fetching categories");
     }
@@ -34,8 +38,8 @@ export default function AdminSubCategoryPage() {
   const fetchSubCategories = async () => {
     try {
       const res = await API.get("/subcategory/viewSubCategory");
-      setSubCategories(res.data);
-      setFilteredSubCategories(res.data);
+      setSubCategories(res.data || []);
+      setFilteredSubCategories(res.data || []);
     } catch (err) {
       alert(err.response?.data?.message || "Error fetching subcategories");
     }
@@ -58,18 +62,88 @@ export default function AdminSubCategoryPage() {
     setFilteredSubCategories(filtered);
   }, [searchTerm, subCategories]);
 
-  // Handle image selection
-  const handleImageChange = (e) => setImage(e.target.files[0]);
-  const removeImage = () => setImage(null);
+  // Handle image selection for a category
+  const handleImageChange = (categoryId, file) => {
+    // if categoryId is undefined (legacy input) ignore
+    if (!categoryId) return;
+    setImage((prev) => ({ ...prev, [categoryId]: file }));
+  };
+
+  const removeImage = (categoryId) => {
+    const existing = existingImage[categoryId];
+    if (existing && existing._id) {
+      setRemovedImageIds((prev) => {
+        if (!prev.includes(existing._id)) return [...prev, existing._id];
+        return prev;
+      });
+    }
+
+    // remove from existingImage (so preview disappears)
+    setExistingImage((prev) => {
+      const copy = { ...prev };
+      delete copy[categoryId];
+      return copy;
+    });
+
+    // clear any newly selected file for this category (so input shows)
+    setImage((prev) => {
+      const copy = { ...prev };
+      delete copy[categoryId];
+      return copy;
+    });
+
+    // optional: if you want the file dialog to open automatically after removal,
+    // you can trigger a click on the file input (I can show this if you want).
+  };
 
   // Add or update subcategory
   const handleSubmit = async () => {
-    if (!name || categoryIds.length === 0) return alert("Please fill all fields");
+    if (!name || categoryIds.length === 0)
+      return alert("Please fill all fields");
+
+    // Quick client-side sanity check
+    console.log(
+      "DEBUG: image state keys:",
+      Object.keys(image),
+      "removedImageIds:",
+      removedImageIds
+    );
+
+    // Build pairs from image state (only categories with a File)
+    const pairs = Object.entries(image)
+      .filter(([catId, file]) => catId && file) // ensure valid
+      .map(([catId, file]) => ({ catId, file }));
+
+    // Sanity: if you expect N files, pairs.length should be N
+    console.log("DEBUG: pairs to upload:", pairs);
 
     const formData = new FormData();
-    formData.append("name", name);
-    categoryIds.forEach((id) => formData.append("categoryIds[]", id));
-    if (image) formData.append("image", image);
+    formData.append("type", "subcategory");
+    formData.append("name", name.trim());
+
+    // Keep sending selected categories (optional)
+    categoryIds.forEach((id) => formData.append("categoryIds", id));
+
+    // IMPORTANT: Append each pair as id THEN file (interleaved)
+    pairs.forEach(({ catId, file }) => {
+      formData.append("imageCategoryIds", catId); // id first
+      formData.append("images", file); // then file
+    });
+
+    // Append removed images
+    removedImageIds.forEach((imgId) =>
+      formData.append("removeImageIds", imgId)
+    );
+
+    // DEBUG: Log FormData entries (order matters)
+    console.log("=== FormData preview ===");
+    for (const pair of formData.entries()) {
+      console.log(pair[0], pair[1]);
+    }
+    console.log("=== counts ===", {
+      pairsCount: pairs.length,
+      formEntries: Array.from(formData.entries()).length,
+    });
 
     try {
       if (editingId) {
@@ -84,11 +158,12 @@ export default function AdminSubCategoryPage() {
         setToastMessage(`Subcategory "${name}" added successfully!`);
       }
 
-      // Reset form
+      // Reset UI
       setName("");
       setCategoryIds([]);
-      setImage(null);
-      setExistingImage(null);
+      setImage({});
+      setExistingImage({});
+      setRemovedImageIds([]);
       setEditingId(null);
       setShowModal(false);
       fetchSubCategories();
@@ -122,14 +197,40 @@ export default function AdminSubCategoryPage() {
     }
   };
 
-  // Edit subcategory
+  // Edit subcategory: populate fields + build existing image map (by categoryId)
   const handleEdit = (sub) => {
-    setName(sub.name);
-    setCategoryIds(sub.categoryIds.map((cat) => cat._id));
+    setName(sub.name || "");
+    const catIds = sub.categoryIds?.map((cat) => cat._id) || [];
+    setCategoryIds(catIds);
+
+    // Build maps for existing images. Expecting backend to return images like:
+    // sub.images = [ { _id, categoryId, path }, ... ]
+    const imagesMap = {};
+    const initialMap = {};
+    if (Array.isArray(sub.images)) {
+      sub.images.forEach((imgObj) => {
+        // ensure categoryId is present and imgObj.path is relative path
+        const cid = imgObj.categoryId?.toString();
+        if (cid) {
+          imagesMap[cid] = { _id: imgObj._id, path: imgObj.path };
+          initialMap[cid] = imgObj._id;
+        }
+      });
+    }
+
+    setExistingImage(imagesMap);
+    initialExistingRef.current = initialMap;
+    setImage({});
+    setRemovedImageIds([]);
     setEditingId(sub._id);
-    setExistingImage(sub.images?.[0] || null);
-    setImage(null);
     setShowModal(true);
+  };
+
+  // Helper: get category name from id (from categories state or sub.categoryIds)
+  const getCategoryName = (categoryId) => {
+    const cat = categories.find((c) => c._id === categoryId);
+    if (cat) return cat.name;
+    return categoryId;
   };
 
   return (
@@ -151,8 +252,9 @@ export default function AdminSubCategoryPage() {
               setName("");
               setCategoryIds([]);
               setEditingId(null);
-              setImage(null);
-              setExistingImage(null);
+              setImage({});
+              setExistingImage({});
+              setRemovedImageIds([]);
               setShowModal(true);
             }}
           >
@@ -167,7 +269,7 @@ export default function AdminSubCategoryPage() {
           <thead className="table-dark">
             <tr>
               <th>#</th>
-              <th>Image</th>
+              <th>Images</th>
               <th>Subcategory Name</th>
               <th>Categories</th>
               <th>Actions</th>
@@ -179,23 +281,61 @@ export default function AdminSubCategoryPage() {
                 <tr key={sub._id}>
                   <td>{index + 1}</td>
                   <td>
-                    {sub.images?.[0] ? (
-                      <img
-                        src={`http://localhost:5000/${sub.images[0]}`}
-                        alt={sub.name}
-                        style={{ width: "50px", height: "50px", objectFit: "cover", borderRadius: "5px" }}
-                      />
-                    ) : (
-                      <span className="text-muted">No Image</span>
-                    )}
+                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                      {Array.isArray(sub.images) && sub.images.length > 0 ? (
+                        sub.images.map((imgObj) => {
+                          // imgObj might be either string path (legacy) or object {path, categoryId}
+                          const imgPath =
+                            typeof imgObj === "string"
+                              ? imgObj
+                              : imgObj.path || imgObj.url;
+                          const catId =
+                            typeof imgObj === "string"
+                              ? null
+                              : imgObj.categoryId || null;
+                          return (
+                            <div
+                              key={imgObj._id || imgPath}
+                              style={{ textAlign: "center" }}
+                            >
+                              <img
+                                src={`http://localhost:5000/${imgPath}`}
+                                alt={sub.name}
+                                style={{
+                                  width: 50,
+                                  height: 50,
+                                  objectFit: "cover",
+                                  borderRadius: "5px",
+                                  display: "block",
+                                }}
+                              />
+                              <small
+                                className="text-muted"
+                                style={{ fontSize: 11 }}
+                              >
+                                {catId ? getCategoryName(catId) : ""}
+                              </small>
+                            </div>
+                          );
+                        })
+                      ) : (
+                        <span className="text-muted">No Image</span>
+                      )}
+                    </div>
                   </td>
                   <td>{sub.name}</td>
                   <td>{sub.categoryIds.map((cat) => cat.name).join(", ")}</td>
                   <td>
-                    <button className="btn btn-outline-warning btn-sm me-1" onClick={() => handleEdit(sub)}>
+                    <button
+                      className="btn btn-outline-warning btn-sm me-1"
+                      onClick={() => handleEdit(sub)}
+                    >
                       <FaEdit />
                     </button>
-                    <button className="btn btn-outline-danger btn-sm" onClick={() => confirmDelete(sub._id, sub.name)}>
+                    <button
+                      className="btn btn-outline-danger btn-sm"
+                      onClick={() => confirmDelete(sub._id, sub.name)}
+                    >
                       <FaTrash />
                     </button>
                   </td>
@@ -203,7 +343,9 @@ export default function AdminSubCategoryPage() {
               ))
             ) : (
               <tr>
-                <td colSpan={5} className="text-center text-muted">No subcategories found.</td>
+                <td colSpan={5} className="text-center text-muted">
+                  No subcategories found.
+                </td>
               </tr>
             )}
           </tbody>
@@ -212,19 +354,39 @@ export default function AdminSubCategoryPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal fade show d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header bg-sidebar text-white">
-                <h5 className="modal-title">{deleteId ? "Delete Subcategory" : editingId ? "Edit Subcategory" : "Add Subcategory"}</h5>
-                <button type="button" className="btn-close" onClick={() => setShowModal(false)}></button>
+                <h5 className="modal-title">
+                  {deleteId
+                    ? "Delete Subcategory"
+                    : editingId
+                    ? "Edit Subcategory"
+                    : "Add Subcategory"}
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setShowModal(false)}
+                ></button>
               </div>
               <div className="modal-body">
                 {deleteId ? (
                   `Are you sure you want to delete subcategory "${deleteName}"?`
                 ) : (
                   <>
-                    <input type="text" className="form-control mb-3" placeholder="Subcategory name" value={name} onChange={(e) => setName(e.target.value)} />
+                    <input
+                      type="text"
+                      className="form-control mb-3"
+                      placeholder="Subcategory name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
 
                     {/* Multi-select categories */}
                     <select
@@ -232,38 +394,128 @@ export default function AdminSubCategoryPage() {
                       multiple
                       value={categoryIds}
                       onChange={(e) =>
-                        setCategoryIds(Array.from(e.target.selectedOptions, (option) => option.value))
+                        setCategoryIds(
+                          Array.from(
+                            e.target.selectedOptions,
+                            (option) => option.value
+                          )
+                        )
                       }
                     >
                       {categories.map((cat) => (
-                        <option key={cat._id} value={cat._id}>{cat.name}</option>
+                        <option key={cat._id} value={cat._id}>
+                          {cat.name}
+                        </option>
                       ))}
                     </select>
-                    <small className="text-muted">Hold Ctrl (Windows) or Cmd (Mac) to select multiple categories</small>
+                    <small className="text-muted">
+                      Hold Ctrl (Windows) or Cmd (Mac) to select multiple
+                      categories
+                    </small>
 
-                    {/* Existing Image */}
-                    {existingImage && (
-                      <div className="mb-3 position-relative">
-                        <img src={`http://localhost:5000/${existingImage}`} alt="subcat" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "5px" }} />
-                        <FaTimes className="position-absolute top-0 end-0 text-danger" style={{ cursor: "pointer", background: "white", borderRadius: "50%" }} onClick={() => setExistingImage(null)} />
-                      </div>
-                    )}
+                    {/* For each selected category, show existing image (if any), preview new image, and file input */}
+                    {categoryIds.map((catId) => {
+                      const cat = categories.find((c) => c._id === catId);
+                      const existing = existingImage[catId];
+                      return (
+                        <div key={catId} className="mb-3">
+                          <label>{cat ? cat.name : catId} Image:</label>
 
-                    {/* New Image */}
-                    {image && (
-                      <div className="mb-3 position-relative">
-                        <img src={URL.createObjectURL(image)} alt="subcat" style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "5px" }} />
-                        <FaTimes className="position-absolute top-0 end-0 text-danger" style={{ cursor: "pointer", background: "white", borderRadius: "50%" }} onClick={removeImage} />
-                      </div>
-                    )}
+                          {/* Existing image preview */}
+                          {existing && existing.path && (
+                            <div
+                              className="position-relative mb-1"
+                              style={{
+                                display: "inline-block",
+                                marginRight: 8,
+                              }}
+                            >
+                              <img
+                                src={`http://localhost:5000/${existing.path}`}
+                                alt={cat?.name}
+                                style={{
+                                  width: 80,
+                                  height: 80,
+                                  objectFit: "cover",
+                                  borderRadius: 5,
+                                }}
+                              />
+                              <FaTimes
+                                className="position-absolute top-0 end-0 text-danger"
+                                style={{
+                                  cursor: "pointer",
+                                  background: "white",
+                                  borderRadius: "50%",
+                                }}
+                                onClick={() => removeImage(catId)}
+                              />
+                            </div>
+                          )}
 
-                    <input type="file" className="form-control" onChange={handleImageChange} />
+                          {/* New selected image preview */}
+                          {image[catId] && (
+                            <div
+                              className="position-relative mb-1"
+                              style={{
+                                display: "inline-block",
+                                marginRight: 8,
+                              }}
+                            >
+                              <img
+                                src={URL.createObjectURL(image[catId])}
+                                alt={cat?.name}
+                                style={{
+                                  width: 80,
+                                  height: 80,
+                                  objectFit: "cover",
+                                  borderRadius: 5,
+                                }}
+                              />
+                              <FaTimes
+                                className="position-absolute top-0 end-0 text-danger"
+                                style={{
+                                  cursor: "pointer",
+                                  background: "white",
+                                  borderRadius: "50%",
+                                }}
+                                onClick={() => removeImage(catId)}
+                              />
+                            </div>
+                          )}
+
+                          {/* FILE INPUT should only show when:  
+         1. existing image was removed  
+         2. there is no existing image  
+         3. OR user removed and now wants new upload 
+      */}
+                          {(!existingImage[catId] ||
+                            removedImageIds.includes(existing?._id)) &&
+                            !image[catId] && (
+                              <input
+                                type="file"
+                                className="form-control"
+                                onChange={(e) =>
+                                  handleImageChange(catId, e.target.files[0])
+                                }
+                              />
+                            )}
+                        </div>
+                      );
+                    })}
                   </>
                 )}
               </div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                <button className={`btn ${deleteId ? "btn-danger" : "btn-sidebar"}`} onClick={deleteId ? handleDelete : handleSubmit}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setShowModal(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  className={`btn ${deleteId ? "btn-danger" : "btn-sidebar"}`}
+                  onClick={deleteId ? handleDelete : handleSubmit}
+                >
                   {deleteId ? "Yes" : editingId ? "Update" : "Add"}
                 </button>
               </div>
@@ -274,7 +526,10 @@ export default function AdminSubCategoryPage() {
 
       {/* Toast */}
       {showToast && (
-        <div className="toast show position-fixed bottom-0 end-0 m-3 bg-success text-white" role="alert">
+        <div
+          className="toast show position-fixed bottom-0 end-0 m-3 bg-success text-white"
+          role="alert"
+        >
           <div className="toast-body">{toastMessage}</div>
         </div>
       )}

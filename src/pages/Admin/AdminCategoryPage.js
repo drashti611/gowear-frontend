@@ -57,9 +57,11 @@ export default function AdminCategoryPage() {
     if (!name) return alert("Enter category name");
 
     const formData = new FormData();
+    formData.append("type", "category");
     formData.append("name", name);
     if (image) formData.append("image", image);
-    if (editingId && removeExistingImage) formData.append("imagesToRemove", JSON.stringify([existingImage]));
+    if (editingId && removeExistingImage)
+      formData.append("imagesToRemove", JSON.stringify([existingImage]));
 
     try {
       if (editingId) {
@@ -171,7 +173,12 @@ export default function AdminCategoryPage() {
                       <img
                         src={`http://localhost:5000/${cat.images[0]}`}
                         alt={cat.name}
-                        style={{ width: "60px", height: "60px", objectFit: "cover", borderRadius: "5px" }}
+                        style={{
+                          width: "60px",
+                          height: "60px",
+                          objectFit: "cover",
+                          borderRadius: "5px",
+                        }}
                       />
                     ) : (
                       <span className="text-muted">No Image</span>
@@ -206,12 +213,20 @@ export default function AdminCategoryPage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="modal fade show d-block" tabIndex="-1" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ background: "rgba(0,0,0,0.5)" }}
+        >
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header bg-sidebar text-white">
                 <h5 className="modal-title">
-                  {deleteId ? "Delete Category" : editingId ? "Edit Category" : "Add Category"}
+                  {deleteId
+                    ? "Delete Category"
+                    : editingId
+                    ? "Edit Category"
+                    : "Add Category"}
                 </h5>
                 <button
                   type="button"
@@ -238,21 +253,34 @@ export default function AdminCategoryPage() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                     />
-                    {(existingImage && !removeExistingImage) && (
+                    {existingImage && !removeExistingImage && (
                       <div className="mb-3 position-relative d-inline-block">
                         <img
                           src={`http://localhost:5000/${existingImage}`}
                           alt="cat"
-                          style={{ width: "80px", height: "80px", objectFit: "cover", borderRadius: "5px" }}
+                          style={{
+                            width: "80px",
+                            height: "80px",
+                            objectFit: "cover",
+                            borderRadius: "5px",
+                          }}
                         />
                         <FaTimes
                           className="position-absolute top-0 end-0 text-danger"
-                          style={{ cursor: "pointer", background: "white", borderRadius: "50%" }}
+                          style={{
+                            cursor: "pointer",
+                            background: "white",
+                            borderRadius: "50%",
+                          }}
                           onClick={removeImage}
                         />
                       </div>
                     )}
-                    <input type="file" className="form-control" onChange={handleImageChange} />
+                    <input
+                      type="file"
+                      className="form-control"
+                      onChange={handleImageChange}
+                    />
                   </>
                 )}
               </div>
@@ -284,7 +312,10 @@ export default function AdminCategoryPage() {
 
       {/* Toast */}
       {showToast && (
-        <div className="toast show position-fixed bottom-0 end-0 m-3 bg-success text-white" role="alert">
+        <div
+          className="toast show position-fixed bottom-0 end-0 m-3 bg-success text-white"
+          role="alert"
+        >
           <div className="toast-body">{toastMessage}</div>
         </div>
       )}
