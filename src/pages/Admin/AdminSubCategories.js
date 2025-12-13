@@ -35,15 +35,28 @@ export default function AdminSubCategoryPage() {
   };
 
   // Fetch subcategories
-  const fetchSubCategories = async () => {
-    try {
-      const res = await API.get("/subcategory/viewSubCategory");
-      setSubCategories(res.data || []);
-      setFilteredSubCategories(res.data || []);
-    } catch (err) {
-      alert(err.response?.data?.message || "Error fetching subcategories");
-    }
-  };
+const fetchSubCategories = async () => {
+  try {
+    const res = await API.get("/subcategory/viewSubCategory");
+
+    const normalized = (res.data || []).map((sub) => ({
+      ...sub,
+      categoryIds: sub.categoryIds?.map((cat) => {
+        // if backend already populated
+        if (typeof cat === "object") return cat;
+
+        // if backend sends only ID
+        const found = categories.find((c) => c._id === cat);
+        return found || { _id: cat, name: "Unknown" };
+      }),
+    }));
+
+    setSubCategories(normalized);
+    setFilteredSubCategories(normalized);
+  } catch (err) {
+    alert(err.response?.data?.message || "Error fetching subcategories");
+  }
+};
 
   useEffect(() => {
     fetchCategories();

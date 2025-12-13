@@ -6,17 +6,22 @@ import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
 
 export default function AdminClothingTypePage() {
   const [clothingTypes, setClothingTypes] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [subCategories, setSubCategories] = useState([]);
+
   const [name, setName] = useState("");
+  const [categoryId, setCategoryId] = useState("");
   const [subCategoryId, setSubCategoryId] = useState("");
-  const [image, setImage] = useState(null); // local File selected
-  const [existingImage, setExistingImage] = useState(null); // server image path string (e.g. "/uploads/...")
+  const [image, setImage] = useState(null);
+  const [existingImage, setExistingImage] = useState(null);
+
   const [editingId, setEditingId] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  // Fetch all clothing types
+  /* ================= FETCH DATA ================= */
+
   const fetchClothingTypes = async () => {
     try {
       const res = await API.get("/product_type");
@@ -27,7 +32,37 @@ export default function AdminClothingTypePage() {
     }
   };
 
-  // Fetch subcategories
+  const fetchCategories = async () => {
+    try {
+      const res = await API.get("/category");
+      setCategories(res.data);
+    } catch (err) {
+      console.error(err);
+      alert("Error fetching categories");
+    }
+  };
+
+  // ✅ FIXED: This now properly searches the categories array
+  const getCategoryNames = (categoryIds) => {
+    if (!categoryIds || categoryIds.length === 0) return "N/A";
+    
+    const names = categoryIds
+      .map(catId => {
+        // If already populated with name property
+        if (catId?.name) return catId.name;
+        
+        // Extract ID (handle both string and object with _id)
+        const id = typeof catId === 'string' ? catId : catId?._id;
+        
+        // Find category name from categories array
+        const category = categories.find(cat => cat._id === id);
+        return category?.name;
+      })
+      .filter(Boolean); // Remove any undefined/null values
+    
+    return names.length > 0 ? names.join(", ") : "N/A";
+  };
+
   const fetchSubCategories = async () => {
     try {
       const res = await API.get("/subCategory/viewSubCategory");
@@ -40,114 +75,111 @@ export default function AdminClothingTypePage() {
 
   useEffect(() => {
     fetchClothingTypes();
+    fetchCategories();
     fetchSubCategories();
   }, []);
 
-  // When user selects a file: preview local and hide server preview
+  /* ================= IMAGE HANDLING ================= */
+
   const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
+    if (e.target.files?.[0]) {
       setImage(e.target.files[0]);
-      setExistingImage(null); // show local preview instead of server image
+      setExistingImage(null);
     }
   };
 
   const removeNewImage = () => setImage(null);
-  // Note: backend doesn't support removing image without uploading new one.
-  // So "remove existing" here just hides preview; if you want server deletion without upload,
-  // backend must be extended to support a removeImage flag.
 
-  // Add or update clothing type
+  /* ================= ADD / UPDATE ================= */
+
   const handleSubmit = async () => {
-    if (!name || !subCategoryId) return alert("Name and Subcategory required");
+    if (!name || !categoryId || !subCategoryId) {
+      return alert("Name, Category and SubCategory are required");
+    }
 
     try {
       const formData = new FormData();
-      formData.append("type", "clothingType");
+      formData.append("type", "product"); // Required by Multer
       formData.append("name", name);
+      formData.append("categoryId", categoryId);
       formData.append("subCategoryId", subCategoryId);
-      // append image only if user selected a new file
+
       if (image) formData.append("image", image);
 
       if (editingId) {
-        // endpoint: PUT /product_type/update/:id
         await API.put(`/product_type/update/${editingId}`, formData);
-        setToastMessage(`Clothing type "${name}" updated successfully!`);
+        setToastMessage("Clothing type updated successfully");
       } else {
-        // endpoint: POST /product_type/addProductType
         await API.post("/product_type/addProductType", formData);
-        setToastMessage(`Clothing type "${name}" added successfully!`);
+        setToastMessage("Clothing type added successfully");
       }
 
-      // reset
-      setName("");
-      setSubCategoryId("");
-      setImage(null);
-      setExistingImage(null);
-      setEditingId(null);
-      setShowModal(false);
-      setShowToast(true);
+      resetForm();
       fetchClothingTypes();
-      setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
-      console.error("Save error:", err, err.response?.data);
-      alert(
-        err.response?.data?.message ||
-          err.message ||
-          "Error saving clothing type"
-      );
+      console.error(err);
+      alert(err.response?.data?.message || "Save failed");
     }
   };
 
-  // Edit a clothing type
+  /* ================= EDIT ================= */
+
   const handleEdit = (type) => {
     setName(type.name);
     setSubCategoryId(type.subCategoryId?._id || "");
+    setCategoryId(
+      Array.isArray(type.categoryId) && type.categoryId.length > 0
+        ? type.categoryId[0]._id || type.categoryId[0]
+        : ""
+    );
     setEditingId(type._id);
-    // show server image preview when editing (if present)
     setExistingImage(type.images?.[0] || null);
     setImage(null);
     setShowModal(true);
   };
 
-  // Delete a clothing type
+  /* ================= DELETE ================= */
+
   const handleDelete = async (type) => {
-    if (!window.confirm(`Are you sure to delete "${type.name}"?`)) return;
+    if (!window.confirm(`Delete "${type.name}"?`)) return;
     try {
       await API.delete(`/product_type/${type._id}`);
-      setToastMessage(`Clothing type "${type.name}" deleted successfully!`);
-      setShowToast(true);
+      setToastMessage("Clothing type deleted successfully");
       fetchClothingTypes();
+      setShowToast(true);
       setTimeout(() => setShowToast(false), 3000);
-    } catch (err) {
-      console.error(err);
-      alert("Error deleting clothing type");
+    } catch {
+      alert("Delete failed");
     }
   };
 
-  // Helper to build full image URL (backend stores path with leading slash)
-  const fullImageUrl = (imgPath) => {
-    if (!imgPath) return null;
-    // If imgPath already starts with http, return as is
-    if (imgPath.startsWith("http")) return imgPath;
-    // otherwise prefix server host
-    return `http://localhost:5000${
-      imgPath.startsWith("/") ? imgPath : `/${imgPath}`
-    }`;
+  /* ================= HELPERS ================= */
+
+  const resetForm = () => {
+    setName("");
+    setCategoryId("");
+    setSubCategoryId("");
+    setImage(null);
+    setExistingImage(null);
+    setEditingId(null);
+    setShowModal(false);
+    setShowToast(true);
+    setTimeout(() => setShowToast(false), 3000);
   };
+
+  const fullImageUrl = (path) =>
+    path?.startsWith("http") ? path : `http://localhost:5000/${path}`;
+
+  /* ================= UI ================= */
 
   return (
     <div className="container my-4">
-      {/* Header */}
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="text-sidebar mb-0">Manage Clothing Types</h2>
+      <div className="d-flex justify-content-between mb-3">
+        <h3 className="text-sidebar">Manage Clothing Types</h3>
         <button
-          className="btn btn-sidebar shadow-sm"
+          className="btn btn-sidebar"
           onClick={() => {
-            setName("");
-            setSubCategoryId("");
-            setImage(null);
-            setExistingImage(null);
-            setEditingId(null);
+            resetForm();
             setShowModal(true);
           }}
         >
@@ -155,189 +187,155 @@ export default function AdminClothingTypePage() {
         </button>
       </div>
 
-      {/* Table */}
-      <div className="table-responsive">
-        <table className="table table-bordered table-hover">
-          <thead className="table-dark">
-            <tr>
-              <th>#</th>
-              <th>Name</th>
-              <th>SubCategory</th>
-              <th>Image</th>
-              <th>Actions</th>
+      {/* TABLE */}
+      <table className="table table-bordered table-hover">
+        <thead className="table-dark">
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>SubCategory</th>
+            <th>Image</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {clothingTypes.map((type, i) => (
+            <tr key={type._id}>
+              <td>{i + 1}</td>
+              <td>{type.name}</td>
+              <td>
+                {/* ✅ Now properly displays category names */}
+                {getCategoryNames(type.categoryId)}
+              </td>
+              <td>{type.subCategoryId?.name || "N/A"}</td>
+              <td>
+                {type.images?.[0] ? (
+                  <img
+                    src={fullImageUrl(type.images[0])}
+                    width={50}
+                    height={50}
+                    style={{ objectFit: "cover" }}
+                    alt={type.name}
+                  />
+                ) : (
+                  "No Image"
+                )}
+              </td>
+              <td>
+                <button
+                  className="btn btn-warning btn-sm me-1"
+                  onClick={() => handleEdit(type)}
+                >
+                  <FaEdit />
+                </button>
+                <button
+                  className="btn btn-danger btn-sm"
+                  onClick={() => handleDelete(type)}
+                >
+                  <FaTrash />
+                </button>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {clothingTypes.map((type, index) => (
-              <tr key={type._id}>
-                <td>{index + 1}</td>
-                <td>{type.name}</td>
-                <td>{type.subCategoryId?.name || "N/A"}</td>
-                <td style={{ width: 80 }}>
-                  {type.images?.[0] ? (
-                    <img
-                      src={fullImageUrl(type.images[0])}
-                      alt={type.name}
-                      style={{
-                        width: 50,
-                        height: 50,
-                        objectFit: "cover",
-                        borderRadius: 4,
-                      }}
-                    />
-                  ) : (
-                    <span className="text-muted">No Image</span>
-                  )}
-                </td>
-                <td>
-                  <button
-                    className="btn btn-outline-warning btn-sm me-1"
-                    onClick={() => handleEdit(type)}
-                  >
-                    <FaEdit />
-                  </button>
-                  <button
-                    className="btn btn-outline-danger btn-sm"
-                    onClick={() => handleDelete(type)}
-                  >
-                    <FaTrash />
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {clothingTypes.length === 0 && (
-              <tr>
-                <td colSpan={5} className="text-center text-muted">
-                  No clothing types found.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          {clothingTypes.length === 0 && (
+            <tr>
+              <td colSpan={6} className="text-center text-muted">
+                No records found
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
 
-      {/* Modal */}
+      {/* MODAL */}
       {showModal && (
-        <div
-          className="modal fade show d-block"
-          tabIndex="-1"
-          style={{ background: "rgba(0,0,0,0.5)" }}
-        >
+        <div className="modal fade show d-block bg-dark bg-opacity-50">
           <div className="modal-dialog modal-dialog-centered">
             <div className="modal-content">
               <div className="modal-header bg-sidebar text-white">
-                <h5 className="modal-title">
-                  {editingId ? "Edit Clothing Type" : "Add Clothing Type"}
-                </h5>
+                <h5>{editingId ? "Edit" : "Add"} Clothing Type</h5>
                 <button
-                  type="button"
                   className="btn-close"
                   onClick={() => setShowModal(false)}
-                ></button>
+                />
               </div>
+
               <div className="modal-body">
-                <div className="mb-2">
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Clothing Type Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
+                <input
+                  className="form-control mb-2"
+                  placeholder="Type Name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                />
 
-                <div className="mb-2">
-                  <select
-                    className="form-control"
-                    value={subCategoryId}
-                    onChange={(e) => setSubCategoryId(e.target.value)}
-                  >
-                    <option value="">Select SubCategory</option>
-                    {subCategories.map((sub) => (
-                      <option key={sub._id} value={sub._id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                {/* CATEGORY */}
+                <select
+                  className="form-control mb-2"
+                  value={categoryId}
+                  onChange={(e) => setCategoryId(e.target.value)}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
 
-                {/* Existing server image preview */}
+                {/* SUBCATEGORY */}
+                <select
+                  className="form-control mb-2"
+                  value={subCategoryId}
+                  onChange={(e) => setSubCategoryId(e.target.value)}
+                >
+                  <option value="">Select SubCategory</option>
+                  {subCategories.map((s) => (
+                    <option key={s._id} value={s._id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+
+                {/* IMAGE */}
                 {existingImage && (
-                  <div className="mb-2">
-                    <div
-                      style={{ display: "inline-block", position: "relative" }}
-                    >
-                      <img
-                        src={fullImageUrl(existingImage)}
-                        alt="existing"
-                        style={{
-                          width: 80,
-                          height: 80,
-                          objectFit: "cover",
-                          borderRadius: 5,
-                        }}
-                      />
-                      <FaTimes
-                        onClick={() => setExistingImage(null)}
-                        style={{
-                          position: "absolute",
-                          top: -8,
-                          right: -8,
-                          background: "white",
-                          borderRadius: "50%",
-                          padding: 2,
-                          cursor: "pointer",
-                          color: "red",
-                        }}
-                      />
-                    </div>
+                  <div className="mb-2 position-relative">
+                    <img
+                      src={fullImageUrl(existingImage)}
+                      width={80}
+                      height={80}
+                      alt="Existing"
+                    />
+                    <FaTimes
+                      onClick={() => setExistingImage(null)}
+                      className="text-danger position-absolute top-0 end-0"
+                      style={{ cursor: "pointer" }}
+                    />
                   </div>
                 )}
 
-                {/* New image preview */}
                 {image && (
-                  <div className="mb-2">
-                    <div
-                      style={{ display: "inline-block", position: "relative" }}
-                    >
-                      <img
-                        src={URL.createObjectURL(image)}
-                        alt="preview"
-                        style={{
-                          width: 80,
-                          height: 80,
-                          objectFit: "cover",
-                          borderRadius: 5,
-                        }}
-                      />
-                      <FaTimes
-                        onClick={removeNewImage}
-                        style={{
-                          position: "absolute",
-                          top: -8,
-                          right: -8,
-                          background: "white",
-                          borderRadius: "50%",
-                          padding: 2,
-                          cursor: "pointer",
-                          color: "red",
-                        }}
-                      />
-                    </div>
+                  <div className="mb-2 position-relative">
+                    <img
+                      src={URL.createObjectURL(image)}
+                      width={80}
+                      height={80}
+                      alt="New"
+                    />
+                    <FaTimes
+                      onClick={removeNewImage}
+                      className="text-danger position-absolute top-0 end-0"
+                      style={{ cursor: "pointer" }}
+                    />
                   </div>
                 )}
 
-                <div className="mb-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    className="form-control"
-                    onChange={handleImageChange}
-                  />
-                  <small className="text-muted">
-                    Select image to upload (optional)
-                  </small>
-                </div>
+                <input
+                  type="file"
+                  className="form-control"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                />
               </div>
 
               <div className="modal-footer">
@@ -356,12 +354,9 @@ export default function AdminClothingTypePage() {
         </div>
       )}
 
-      {/* Toast */}
+      {/* TOAST */}
       {showToast && (
-        <div
-          className="toast show position-fixed bottom-0 end-0 m-3"
-          role="alert"
-        >
+        <div className="toast show position-fixed bottom-0 end-0 m-3">
           <div className="toast-body">{toastMessage}</div>
         </div>
       )}

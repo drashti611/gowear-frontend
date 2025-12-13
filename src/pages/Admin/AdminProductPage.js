@@ -29,6 +29,8 @@ export default function AdminProductPage() {
     brandId: "",
     discount: 0,
     images: [],
+    existingImages: [],
+    imagesToRemove: [],
     variants: [
       {
         color: "",
@@ -59,8 +61,8 @@ export default function AdminProductPage() {
         API.get("/category"),
         API.get("/brand/viewBrand"),
       ]);
-      setCategories(catRes.data);
-      setBrands(brandRes.data);
+      setCategories(catRes.data || []);
+      setBrands(brandRes.data || []);
     } catch (err) {
       console.error("Error fetching dropdown data:", err);
       alert("Error fetching dropdown data");
@@ -79,7 +81,7 @@ export default function AdminProductPage() {
       const res = await API.get(
         `/subcategory/viewSubCategoryByCategoryID/${categoryId}`
       );
-      setSubCategories(res.data);
+      setSubCategories(res.data || []);
     } catch (err) {
       console.error("Error fetching subcategories:", err);
       alert("Error fetching subcategories");
@@ -88,16 +90,23 @@ export default function AdminProductPage() {
 
   // =========================
   // Fetch clothing types by subcategory
+  // NOTE: match backend route: /product_type/productTypeBysubcategory/:id
   // =========================
   const fetchClothingTypesBySubCategory = async (subCategoryId) => {
+    if (!subCategoryId) {
+      setClothingTypes([]);
+      return;
+    }
     try {
-      const response = await API.get(`/product_type/subcategory/${subCategoryId}`);
-      setClothingTypes(response.data);
+      const response = await API.get(
+        `/product_type/productTypeBysubcategory/${subCategoryId}`
+      );
+      setClothingTypes(response.data || []);
     } catch (error) {
       console.error("Error fetching clothing types:", error);
+      setClothingTypes([]);
     }
   };
-
 
   useEffect(() => {
     fetchProducts();
@@ -109,7 +118,7 @@ export default function AdminProductPage() {
   // =========================
   useEffect(() => {
     const filtered = products.filter((p) =>
-      p.name.toLowerCase().includes(searchTerm.toLowerCase())
+      (p.name || "").toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredProducts(filtered);
   }, [searchTerm, products]);
@@ -180,20 +189,20 @@ export default function AdminProductPage() {
   const handleSubmit = async () => {
     try {
       const formData = new FormData();
-      formData.append("type","product");
+      formData.append("type", "product");
       formData.append("name", productData.name || "");
       formData.append("description", productData.description || "");
       formData.append("categoryId", productData.categoryId || "");
       formData.append("subCategoryId", productData.subCategoryId || "");
-      formData.append("clothingTypeId", productData.clothingTypeId);
+      formData.append("clothingTypeId", productData.clothingTypeId || "");
       formData.append("brandId", productData.brandId || "");
       formData.append("discount", productData.discount || 0);
       formData.append(
         "imagesToRemove",
         JSON.stringify(productData.imagesToRemove || [])
       );
-      productData.images.forEach((img) => formData.append("images", img));
-      formData.append("variants", JSON.stringify(productData.variants));
+      (productData.images || []).forEach((img) => formData.append("images", img));
+      formData.append("variants", JSON.stringify(productData.variants || []));
 
       if (editingId) {
         await API.put(`/product/updateProduct/${editingId}`, formData);
@@ -267,17 +276,21 @@ export default function AdminProductPage() {
       existingImages: p.images || [],
       imagesToRemove: [],
       variants:
-        p.variants.length > 0
+        p.variants && p.variants.length > 0
           ? p.variants.map((v) => ({
-            color: v.color || "",
-            sizes: v.sizes.map((s) => ({
-              size: s.size || "",
-              stock: s.stock || 0,
-              price: s.price || 0,
-            })),
-          }))
+              color: v.color || "",
+              sizes: v.sizes.map((s) => ({
+                size: s.size || "",
+                stock: s.stock || 0,
+                price: s.price || 0,
+              })),
+            }))
           : [{ color: "", sizes: [{ size: "", stock: 0, price: 0 }] }],
     });
+
+    // clear current dropdown arrays then fetch appropriate ones
+    setSubCategories([]);
+    setClothingTypes([]);
 
     if (p.categoryId?._id) fetchSubCategoriesByCategory(p.categoryId._id);
     if (p.subCategoryId?._id)
@@ -315,10 +328,16 @@ export default function AdminProductPage() {
                 brandId: "",
                 discount: 0,
                 images: [],
+                existingImages: [],
+                imagesToRemove: [],
                 variants: [
                   { color: "", sizes: [{ size: "", stock: 0, price: 0 }] },
                 ],
               });
+              // clear dependent dropdowns when opening Add modal
+              setSubCategories([]);
+              setClothingTypes([]);
+
               setEditingId(null);
               setShowModal(true);
             }}
@@ -413,11 +432,7 @@ export default function AdminProductPage() {
             <div className="modal-content">
               <div className="modal-header bg-sidebar text-white">
                 <h5 className="modal-title">
-                  {deleteId
-                    ? "Delete Product"
-                    : editingId
-                      ? "Edit Product"
-                      : "Add Product"}
+                  {deleteId ? "Delete Product" : editingId ? "Edit Product" : "Add Product"}
                 </h5>
                 <button
                   type="button"
@@ -480,7 +495,10 @@ export default function AdminProductPage() {
                             subCategoryId: "",
                             clothingTypeId: "",
                           });
+                          // fetch subcategories for this category
                           fetchSubCategoriesByCategory(selectedCategory);
+                          // clear clothing types because subcategory changed
+                          setClothingTypes([]);
                         }}
                       >
                         <option value="">Select Category</option>
@@ -527,8 +545,11 @@ export default function AdminProductPage() {
                             clothingTypeId: e.target.value,
                           })
                         }
+                        disabled={clothingTypes.length === 0}
                       >
-                        <option value="">Select Clothing Type</option>
+                        <option value="">
+                          {clothingTypes.length === 0 ? "Select SubCategory first" : "Select Clothing Type"}
+                        </option>
                         {clothingTypes.map((ct) => (
                           <option key={ct._id} value={ct._id}>
                             {ct.name}
@@ -749,10 +770,7 @@ export default function AdminProductPage() {
                     >
                       Cancel
                     </button>
-                    <button
-                      className="btn btn-danger"
-                      onClick={handleDelete}
-                    >
+                    <button className="btn btn-danger" onClick={handleDelete}>
                       Delete
                     </button>
                   </>

@@ -5,7 +5,7 @@ import API from "../../api/axios";
 import "../../css/Customercss/ProductByCategoryScreen.css";
 
 export default function ProductByCategoryScreen() {
-  const { subCategoryId } = useParams();
+  const { categoryId, subCategoryId } = useParams(); // ✅ Handle both params
   const navigate = useNavigate();
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -18,21 +18,33 @@ export default function ProductByCategoryScreen() {
   }, []);
 
   useEffect(() => {
-    if (!subCategoryId) return;
+    // ✅ Must have either categoryId or subCategoryId
+    if (!categoryId && !subCategoryId) return;
 
     const fetchProducts = async () => {
       try {
-        const res = await API.get(`/product/getProductsBySubCategory/${subCategoryId}`);
-        setProducts(res.data);
+        let res;
+        
+        // ✅ Fetch based on which parameter is present
+        if (subCategoryId) {
+          // If subCategoryId is present, fetch by subcategory
+          res = await API.get(`/product/getProductsBySubCategory/${subCategoryId}`);
+        } else if (categoryId) {
+          // If only categoryId is present, fetch by category
+          res = await API.get(`/product/getProductsByCategory/${categoryId}`);
+        }
+        
+        setProducts(res.data || []);
       } catch (err) {
         console.error("Error fetching products:", err);
+        setProducts([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchProducts();
-  }, [subCategoryId]);
+  }, [categoryId, subCategoryId]); // ✅ Watch both params
 
   if (loading)
     return (
@@ -42,7 +54,7 @@ export default function ProductByCategoryScreen() {
     );
 
   if (!products || products.length === 0)
-    return <p className="no-data">No products found for this subcategory.</p>;
+    return <p className="no-data">No products found for this {subCategoryId ? 'subcategory' : 'category'}.</p>;
 
   const handleAddToCart = (e, product) => {
     e.stopPropagation();
@@ -90,7 +102,7 @@ export default function ProductByCategoryScreen() {
     localStorage.setItem("likedProducts", JSON.stringify(liked));
     setLikedProducts(liked);
     window.dispatchEvent(new Event("storage"));
-    navigate("/likes"); // redirect to likes screen
+    // ✅ Don't navigate to /likes, just update the heart icon
   };
 
   const isProductLiked = (productId) => likedProducts.some((p) => p._id === productId);
