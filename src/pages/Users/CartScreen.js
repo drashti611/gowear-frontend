@@ -7,9 +7,8 @@ export default function CartScreen() {
   const navigate = useNavigate();
   const [cart, setCart] = useState([]);
   const [couponCode, setCouponCode] = useState("");
-  const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponMessage, setCouponMessage] = useState("");
-  const [couponApplied, setCouponApplied] = useState(false);
+  const [appliedCoupons, setAppliedCoupons] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [showCouponModal, setShowCouponModal] = useState(false);
 
@@ -43,47 +42,6 @@ export default function CartScreen() {
     updateCart(updatedCart);
   };
 
-  const applyCoupon = async (codeParam) => {
-    const codeToApply = codeParam || couponCode;
-
-    try {
-      const res = await fetch("http://localhost:5000/api/coupon/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: codeToApply,
-          orderAmount: totalAmount,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setCouponDiscount(0);
-        setCouponApplied(false);
-        setCouponMessage(data.message);
-        localStorage.removeItem("appliedCoupon");
-        return;
-      }
-
-      setCouponCode(codeToApply);
-      setCouponDiscount(data.discount);
-      setCouponApplied(true);
-      setCouponMessage(`Applied ${codeToApply}`);
-      localStorage.setItem("appliedCoupon", codeToApply);
-    } catch {
-      setCouponMessage("Coupon apply failed");
-    }
-  };
-
-  const removeCoupon = () => {
-    setCouponCode("");
-    setCouponDiscount(0);
-    setCouponApplied(false);
-    setCouponMessage("");
-    localStorage.removeItem("appliedCoupon");
-  };
-
   /* ======================
      TOTAL CALCULATIONS
   ====================== */
@@ -110,16 +68,49 @@ export default function CartScreen() {
 
   const freeShippingThreshold = 3000;
   const shipping = totalAmount >= freeShippingThreshold ? 0 : 100;
-  const finalTotal = Math.max(totalAmount - couponDiscount + shipping, 0);
+  const finalTotal =
+    Math.max(totalAmount - appliedCoupons.reduce((acc, c) => acc + c.discount, 0) + shipping, 0);
   const amountForFreeShipping =
     totalAmount >= freeShippingThreshold ? 0 : freeShippingThreshold - totalAmount;
 
-  useEffect(() => {
-    if (!couponApplied) return;
-    applyCoupon(couponCode);
-  }, [totalAmount]);
+  const applyCoupon = async (codeParam) => {
+    const codeToApply = codeParam || couponCode;
 
-  if (cart.length === 0) return <div className="cart-empty">Your cart is empty.</div>;
+    try {
+      const res = await fetch("http://localhost:5000/api/coupon/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: codeToApply,
+          orderAmount: totalAmount,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCouponMessage(data.message);
+        return;
+      }
+
+      if (!appliedCoupons.some((c) => c.code === codeToApply)) {
+        setAppliedCoupons([...appliedCoupons, { code: codeToApply, discount: data.discount }]);
+        setCouponMessage(`Applied ${codeToApply}`);
+      } else {
+        setCouponMessage(`${codeToApply} is already applied`);
+      }
+      setCouponCode("");
+    } catch {
+      setCouponMessage("Coupon apply failed");
+    }
+  };
+
+  const removeCoupon = (code) => {
+    setAppliedCoupons(appliedCoupons.filter((c) => c.code !== code));
+  };
+
+  if (cart.length === 0)
+    return <div className="cart-empty">Your cart is empty.</div>;
 
   return (
     <div className="cart-wrapper">
@@ -230,24 +221,20 @@ export default function CartScreen() {
           type="text"
           placeholder="Enter Coupon Code"
           value={couponCode}
-          disabled={couponApplied}
           onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
         />
 
-        {!couponApplied ? (
-          <button className="view-coupon-btn" onClick={() => setShowCouponModal(true)}>
-            View Available Coupons
-          </button>
-        ) : (
-          <button className="remove-coupon-btn" onClick={removeCoupon}>
-            Remove Coupon
-          </button>
-        )}
+        <button
+          className="view-coupon-btn"
+          onClick={() => setShowCouponModal(true)}
+        >
+          View Available Coupons
+        </button>
 
         {couponMessage && (
           <p
             style={{
-              color: couponApplied ? "green" : "red",
+              color: "green",
               marginTop: "8px",
               fontSize: "14px",
             }}
@@ -255,8 +242,21 @@ export default function CartScreen() {
             {couponMessage}
           </p>
         )}
+
+        {/* Applied Coupons */}
+        {appliedCoupons.length > 0 && (
+          <div className="applied-coupons">
+            {appliedCoupons.map((c) => (
+              <div key={c.code} className="applied-coupon">
+                <span>{c.code} - ₹{c.discount.toFixed(2)}</span>
+                <button onClick={() => removeCoupon(c.code)}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* COUPON MODAL */}
       {showCouponModal && (
         <div className="coupon-modal-overlay">
           <div className="coupon-modal">
@@ -283,7 +283,6 @@ export default function CartScreen() {
 
                   <button
                     onClick={() => {
-                      setCouponCode(coupon.code);
                       applyCoupon(coupon.code);
                       setShowCouponModal(false);
                     }}
@@ -323,12 +322,12 @@ export default function CartScreen() {
             <span>₹{totalDiscount.toFixed(2)}</span>
           </div>
 
-          {couponDiscount > 0 && (
-            <div className="cart-summary-row">
-              <span>Coupon Discount</span>
-              <span style={{ color: "green" }}>- ₹{couponDiscount.toFixed(2)}</span>
+          {appliedCoupons.length > 0 && appliedCoupons.map((c) => (
+            <div className="cart-summary-row" key={c.code}>
+              <span>Coupon ({c.code})</span>
+              <span style={{ color: "green" }}>- ₹{c.discount.toFixed(2)}</span>
             </div>
-          )}
+          ))}
 
           <div className="cart-summary-row">
             <span>Shipping</span>
@@ -347,6 +346,8 @@ export default function CartScreen() {
             onClick={() => {
               localStorage.setItem("cartTotal", totalAmount);
               localStorage.setItem("finalAmount", finalTotal);
+              localStorage.setItem("appliedCoupons", JSON.stringify(appliedCoupons));
+
               navigate("/checkout");
             }}
           >
