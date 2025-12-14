@@ -5,6 +5,8 @@ import API from "../../api/axios";
 import "../../css/Customercss/ProductByCategoryScreen.css";
 
 export default function ProductByCategoryScreen() {
+  const [showFilter, setShowFilter] = useState(false);
+
   const { categoryId, subCategoryId } = useParams();
   const navigate = useNavigate();
 
@@ -262,10 +264,10 @@ export default function ProductByCategoryScreen() {
             <div className="product-info">
               <div className="product-title">
                 <h3>{product.name}</h3>
-                <FaShoppingCart
+                {/* <FaShoppingCart
                   className="icon cart-icon"
                   onClick={(e) => handleAddToCart(e, product)}
-                />
+                /> */}
               </div>
               <p className="product-brand-price">
                 {product.brandId?.name} – ₹

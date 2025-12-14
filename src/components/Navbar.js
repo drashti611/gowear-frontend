@@ -2,6 +2,8 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useState, useEffect, useRef } from "react";
 import API from "../api/axios";
 import "../css/Navbar.css";
+import jwtDecode from "jwt-decode";
+
 
 import {
   FaUser,
@@ -21,8 +23,30 @@ import {
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const token = sessionStorage.getItem("token") || localStorage.getItem("token");
-  const role = sessionStorage.getItem("role") || localStorage.getItem("role");
+const token =
+  sessionStorage.getItem("token") || localStorage.getItem("token");
+
+useEffect(() => {
+  if (!token) {
+    setRole(null);
+    return;
+  }
+
+  try {
+    const decoded = jwtDecode(token);
+    // ✅ Update ye
+    if (decoded.role === "admin") {
+      setRole(null); // admin ke liye user role null ho jaaye
+    } else {
+      setRole(decoded.role); // normal user ke liye role set ho jaaye
+    }
+  } catch (err) {
+    localStorage.clear();
+    sessionStorage.clear();
+    navigate("/login");
+  }
+}, [token, navigate]);
+
 
   const [city, setCity] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -31,6 +55,7 @@ export default function Navbar() {
   const [likeCount, setLikeCount] = useState(0);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+const [role, setRole] = useState(null);
 
   const [activeCategory, setActiveCategory] = useState(null);
   const [hoveredSubcategory, setHoveredSubcategory] = useState(null);
@@ -283,11 +308,9 @@ export default function Navbar() {
           {/* Action Icons */}
           <div className="nav-actions">
             {/* Wishlist */}
-            {/* Wishlist */}
             <div className="action-btn" onClick={handleWishlistClick}>
               <div className="action-icon-box">
                 <FaHeart className="action-icon" />
-                {/* Show count only if logged in */}
                 {token && likeCount > 0 && <span className="action-badge">{likeCount}</span>}
               </div>
               <span className="action-text">Wishlist</span>
@@ -297,12 +320,10 @@ export default function Navbar() {
             <div className="action-btn" onClick={handleCartClick}>
               <div className="action-icon-box">
                 <FaShoppingBag className="action-icon" />
-                {/* Show count only if logged in */}
                 {token && cartCount > 0 && <span className="action-badge">{cartCount}</span>}
               </div>
               <span className="action-text">Bag</span>
             </div>
-
 
             {/* Profile / Login */}
             {!token ? (

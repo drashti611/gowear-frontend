@@ -1,15 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { FaTrash, FaHeart } from "react-icons/fa";
+import { FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import "../../css/Customercss/CartScreen.css";
 
 export default function CartScreen() {
   const navigate = useNavigate();
   const [cart, setCart] = useState([]);
+  const [couponCode, setCouponCode] = useState("");
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState("");
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [coupons, setCoupons] = useState([]);
+  const [showCouponModal, setShowCouponModal] = useState(false);
 
   useEffect(() => {
     const storedCart = JSON.parse(localStorage.getItem("cart")) || [];
     setCart(storedCart);
+  }, []);
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/coupon")
+      .then((res) => res.json())
+      .then((data) => setCoupons(data.filter((c) => c.isActive)))
+      .catch((err) => console.error(err));
   }, []);
 
   const updateCart = (updatedCart) => {
@@ -30,30 +43,63 @@ export default function CartScreen() {
     updateCart(updatedCart);
   };
 
+  const applyCoupon = async (codeParam) => {
+    const codeToApply = codeParam || couponCode;
+
+    try {
+      const res = await fetch("http://localhost:5000/api/coupon/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          code: codeToApply,
+          orderAmount: totalAmount,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setCouponDiscount(0);
+        setCouponApplied(false);
+        setCouponMessage(data.message);
+        localStorage.removeItem("appliedCoupon");
+        return;
+      }
+
+      setCouponCode(codeToApply);
+      setCouponDiscount(data.discount);
+      setCouponApplied(true);
+      setCouponMessage(`Applied ${codeToApply}`);
+      localStorage.setItem("appliedCoupon", codeToApply);
+    } catch {
+      setCouponMessage("Coupon apply failed");
+    }
+  };
+
+  const removeCoupon = () => {
+    setCouponCode("");
+    setCouponDiscount(0);
+    setCouponApplied(false);
+    setCouponMessage("");
+    localStorage.removeItem("appliedCoupon");
+  };
+
   /* ======================
      TOTAL CALCULATIONS
-     (UNCHANGED LOGIC)
   ====================== */
-
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
   const totalMRP = cart.reduce((acc, item) => {
     const basePrice =
-      item.variants
-        ?.find((v) => v.color === item.selectedColor)
-        ?.sizes?.[0]?.price ||
-      item.price ||
-      0;
+      item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]
+        ?.price || item.price || 0;
     return acc + basePrice * item.quantity;
   }, 0);
 
   const totalDiscount = cart.reduce((acc, item) => {
     const basePrice =
-      item.variants
-        ?.find((v) => v.color === item.selectedColor)
-        ?.sizes?.[0]?.price ||
-      item.price ||
-      0;
+      item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]
+        ?.price || item.price || 0;
     const discountAmount = item.discount
       ? (basePrice * item.discount) / 100
       : 0;
@@ -61,17 +107,19 @@ export default function CartScreen() {
   }, 0);
 
   const totalAmount = totalMRP - totalDiscount;
+
   const freeShippingThreshold = 3000;
   const shipping = totalAmount >= freeShippingThreshold ? 0 : 100;
-  const finalTotal = totalAmount + shipping;
-
+  const finalTotal = Math.max(totalAmount - couponDiscount + shipping, 0);
   const amountForFreeShipping =
-    totalAmount >= freeShippingThreshold
-      ? 0
-      : freeShippingThreshold - totalAmount;
+    totalAmount >= freeShippingThreshold ? 0 : freeShippingThreshold - totalAmount;
 
-  if (cart.length === 0)
-    return <div className="cart-empty">Your cart is empty.</div>;
+  useEffect(() => {
+    if (!couponApplied) return;
+    applyCoupon(couponCode);
+  }, [totalAmount]);
+
+  if (cart.length === 0) return <div className="cart-empty">Your cart is empty.</div>;
 
   return (
     <div className="cart-wrapper">
@@ -79,18 +127,16 @@ export default function CartScreen() {
       <div className="cart-left">
         {cart.map((item) => {
           const basePrice =
-            item.variants
-              ?.find((v) => v.color === item.selectedColor)
-              ?.sizes?.[0]?.price ||
-            item.price ||
-            0;
+            item.variants?.find((v) => v.color === item.selectedColor)
+              ?.sizes?.[0]?.price || item.price || 0;
 
           const discountedPrice = item.discount
             ? basePrice - (basePrice * item.discount) / 100
             : basePrice;
 
-          const variant =
-            item.variants?.find((v) => v.color === item.selectedColor);
+          const variant = item.variants?.find(
+            (v) => v.color === item.selectedColor
+          );
 
           return (
             <div className="cart-item" key={item._id}>
@@ -112,7 +158,6 @@ export default function CartScreen() {
                   Color: <strong>{item.selectedColor || "N/A"}</strong>
                 </p>
 
-                {/* ✅ SIZE SHOW + EDIT (ADDED ONLY) */}
                 <div className="cart-size">
                   <label>Size:</label>
                   <select
@@ -134,7 +179,6 @@ export default function CartScreen() {
                   </select>
                 </div>
 
-                {/* PRICE (UNCHANGED) */}
                 <div className="cart-price">
                   {item.discount > 0 ? (
                     <>
@@ -175,13 +219,83 @@ export default function CartScreen() {
           );
         })}
 
-        <button
-          className="cart-continue-btn"
-          onClick={() => navigate("/")}
-        >
+        <button className="cart-continue-btn" onClick={() => navigate("/")}>
           Continue Shopping
         </button>
       </div>
+
+      {/* COUPON SECTION */}
+      <div className="coupon-box">
+        <input
+          type="text"
+          placeholder="Enter Coupon Code"
+          value={couponCode}
+          disabled={couponApplied}
+          onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+        />
+
+        {!couponApplied ? (
+          <button className="view-coupon-btn" onClick={() => setShowCouponModal(true)}>
+            View Available Coupons
+          </button>
+        ) : (
+          <button className="remove-coupon-btn" onClick={removeCoupon}>
+            Remove Coupon
+          </button>
+        )}
+
+        {couponMessage && (
+          <p
+            style={{
+              color: couponApplied ? "green" : "red",
+              marginTop: "8px",
+              fontSize: "14px",
+            }}
+          >
+            {couponMessage}
+          </p>
+        )}
+      </div>
+
+      {showCouponModal && (
+        <div className="coupon-modal-overlay">
+          <div className="coupon-modal">
+            <div className="coupon-modal-header">
+              <h3>Available Coupons</h3>
+              <button className="close-modal" onClick={() => setShowCouponModal(false)}>
+                ✕
+              </button>
+            </div>
+
+            <div className="coupon-modal-body">
+              {coupons.length === 0 && <p>No coupons available</p>}
+              {coupons.map((coupon) => (
+                <div key={coupon._id} className="coupon-card">
+                  <div>
+                    <strong>{coupon.code}</strong>
+                    <p>
+                      {coupon.discountType === "percentage"
+                        ? `${coupon.discountValue}% OFF`
+                        : `₹${coupon.discountValue} OFF`}
+                    </p>
+                    <small>Min order ₹{coupon.minOrderValue}</small>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setCouponCode(coupon.code);
+                      applyCoupon(coupon.code);
+                      setShowCouponModal(false);
+                    }}
+                  >
+                    Apply
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* RIGHT */}
       <div className="cart-right">
@@ -209,10 +323,12 @@ export default function CartScreen() {
             <span>₹{totalDiscount.toFixed(2)}</span>
           </div>
 
-          <div className="cart-summary-row total">
-            <span>Total Amount</span>
-            <span>₹{totalAmount.toFixed(2)}</span>
-          </div>
+          {couponDiscount > 0 && (
+            <div className="cart-summary-row">
+              <span>Coupon Discount</span>
+              <span style={{ color: "green" }}>- ₹{couponDiscount.toFixed(2)}</span>
+            </div>
+          )}
 
           <div className="cart-summary-row">
             <span>Shipping</span>
@@ -228,7 +344,11 @@ export default function CartScreen() {
 
           <button
             className="cart-checkout-btn"
-            onClick={() => navigate("/checkout")}
+            onClick={() => {
+              localStorage.setItem("cartTotal", totalAmount);
+              localStorage.setItem("finalAmount", finalTotal);
+              navigate("/checkout");
+            }}
           >
             Checkout
           </button>

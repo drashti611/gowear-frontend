@@ -8,7 +8,7 @@
 }
 
 /* FILTER */
-.filter-panel {
+/* .filter-panel {
   background: #ffffff;
   padding: 1.5rem;
   border-radius: 16px;
@@ -16,6 +16,18 @@
   height: fit-content;
   position: sticky;
   top: 90px;
+} */
+
+.filter-panel {
+  position: relative;
+  background: #ffffff;
+  padding: 1.5rem;
+  border-radius: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+  height: 75vh;
+  position: sticky;
+  top: 90px;
+  overflow: hidden;
 }
 
 .filter-panel h3 {
@@ -36,7 +48,6 @@
 }
 
 .clear-filter {
-  width: 100%;
   padding: 12px;
   background: #ff4d6d;
   color: white;
@@ -44,6 +55,11 @@
   border-radius: 12px;
   font-weight: 600;
   cursor: pointer;
+    position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+
 }
 
 /* GRID */

@@ -36,6 +36,7 @@ body {
 
 /* Card */
 .product-card {
+  max-height: 370px;
   background: var(--card-bg);
   border-radius: 15px;
   overflow: hidden;

@@ -19,6 +19,8 @@ import AdminClothingTypePage from "./pages/Admin/AdminClothingTypePage";
 import CartScreen from "./pages/Users/CartScreen";
 import LikesScreen from "./pages/Users/LikesScreen";
 import AdminCouponsPage from "./pages/Admin/AdminCouponsPage";
+import Checkout from "./pages/Users/CheckOut";
+import FetachOrders from "./pages/Users/FetachOrders";
 
 
 function App() {
@@ -40,6 +42,8 @@ function App() {
         <Route path="/productdetail/:id" element={<ProductDetailScreen />} />
         <Route path="/cart" element={<CartScreen />} />
         <Route path="/likes" element={<LikesScreen />} />
+        <Route path="/checkout" element={<Checkout />} />
+        <Route path="/orders" element={<FetachOrders />} />
         <Route
           path="/admin/home"
           element={

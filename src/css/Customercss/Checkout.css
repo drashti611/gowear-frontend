@@ -1,0 +1,149 @@
+.checkout-container {
+  display: flex;
+  justify-content: center;
+  padding: 2rem;
+  background-color: #f0f2f5;
+  min-height: 100vh;
+}
+
+.checkout-card {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 500px;
+}
+
+.checkout-title {
+  text-align: center;
+  color: #333;
+  margin-bottom: 2rem;
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.section {
+  margin-bottom: 1.8rem;
+}
+
+.input-group {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1rem;
+  background: #f7f7f7;
+  border-radius: 8px;
+  padding: 0.6rem;
+}
+
+.input-group .icon {
+  margin-right: 0.8rem;
+  color: #3498db;
+}
+
+.input-group input {
+  border: none;
+  background: transparent;
+  outline: none;
+  width: 100%;
+  font-size: 1rem;
+  padding: 0.4rem 0;
+}
+
+.coupon-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.coupon-group input {
+  flex: 1;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+.apply-btn,
+.remove-btn {
+  padding: 0.6rem 1rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.2s;
+}
+
+.apply-btn {
+  background-color: #3498db;
+  color: #fff;
+}
+
+.apply-btn:hover {
+  background-color: #2980b9;
+}
+
+.remove-btn {
+  background-color: #e74c3c;
+  color: #fff;
+}
+
+.remove-btn:hover {
+  background-color: #c0392b;
+}
+
+.payment-options {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.payment-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.8rem 0;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  cursor: pointer;
+  font-weight: 500;
+  background-color: #f7f7f7;
+  transition: 0.2s;
+}
+
+.payment-btn.active {
+  background-color: #3498db;
+  color: #fff;
+  border: none;
+}
+
+.payment-btn:hover {
+  background-color: #2980b9;
+  color: #fff;
+}
+
+.summary {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.place-order-btn {
+  background-color: #3498db;
+  color: #fff;
+  border: none;
+  padding: 0.9rem 2rem;
+  border-radius: 10px;
+  font-size: 1.1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: 0.2s;
+}
+
+.place-order-btn:hover {
+  background-color: #2980b9;
+}
+
+.place-order-btn:disabled {
+  background-color: #95a5a6;
+  cursor: not-allowed;
+}
