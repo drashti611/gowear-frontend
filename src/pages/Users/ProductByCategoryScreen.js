@@ -5,38 +5,45 @@ import API from "../../api/axios";
 import "../../css/Customercss/ProductByCategoryScreen.css";
 
 export default function ProductByCategoryScreen() {
-  const { categoryId, subCategoryId } = useParams(); // ✅ Handle both params
+  const { categoryId, subCategoryId } = useParams();
   const navigate = useNavigate();
+
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [likedProducts, setLikedProducts] = useState([]);
 
-  // Load liked products from localStorage
+  const [filters, setFilters] = useState({
+    minPrice: "",
+    maxPrice: "",
+    color: "",
+    size: "",
+  });
+
+  // ================= LOAD LIKES =================
   useEffect(() => {
-    const storedLikes = JSON.parse(localStorage.getItem("likedProducts")) || [];
-    setLikedProducts(storedLikes);
+    const likes = JSON.parse(localStorage.getItem("likedProducts")) || [];
+    setLikedProducts(likes);
   }, []);
 
+  // ================= FETCH PRODUCTS =================
   useEffect(() => {
-    // ✅ Must have either categoryId or subCategoryId
     if (!categoryId && !subCategoryId) return;
 
     const fetchProducts = async () => {
       try {
         let res;
-        
-        // ✅ Fetch based on which parameter is present
         if (subCategoryId) {
-          // If subCategoryId is present, fetch by subcategory
-          res = await API.get(`/product/getProductsBySubCategory/${subCategoryId}`);
-        } else if (categoryId) {
-          // If only categoryId is present, fetch by category
-          res = await API.get(`/product/getProductsByCategory/${categoryId}`);
+          res = await API.get(
+            `/product/getProductsBySubCategory/${subCategoryId}`
+          );
+        } else {
+          res = await API.get(
+            `/product/getProductsByCategory/${categoryId}`
+          );
         }
-        
         setProducts(res.data || []);
       } catch (err) {
-        console.error("Error fetching products:", err);
+        console.error(err);
         setProducts([]);
       } finally {
         setLoading(false);
@@ -44,8 +51,91 @@ export default function ProductByCategoryScreen() {
     };
 
     fetchProducts();
-  }, [categoryId, subCategoryId]); // ✅ Watch both params
+  }, [categoryId, subCategoryId]);
 
+  // ================= FILTER OPTIONS =================
+  const colors = [
+    ...new Set(
+      products.flatMap((p) => p.variants?.map((v) => v.color)).filter(Boolean)
+    ),
+  ];
+
+  const sizes = [
+    ...new Set(
+      products
+        .flatMap((p) =>
+          p.variants?.flatMap((v) => v.sizes?.map((s) => s.size))
+        )
+        .filter(Boolean)
+    ),
+  ];
+
+  // ================= APPLY FILTERS =================
+  const filteredProducts = products.filter((product) => {
+    const variants = product.variants || [];
+
+    let colorMatch = true;
+    let sizeMatch = true;
+    let priceMatch = true;
+
+    if (filters.color) {
+      colorMatch = variants.some(
+        (v) => v.color?.toLowerCase() === filters.color.toLowerCase()
+      );
+    }
+
+    if (filters.size) {
+      sizeMatch = variants.some((v) =>
+        v.sizes?.some((s) => s.size === filters.size)
+      );
+    }
+
+    if (filters.minPrice || filters.maxPrice) {
+      priceMatch = variants.some((v) =>
+        v.sizes?.some((s) => {
+          if (filters.minPrice && s.price < +filters.minPrice) return false;
+          if (filters.maxPrice && s.price > +filters.maxPrice) return false;
+          return true;
+        })
+      );
+    }
+
+    return colorMatch && sizeMatch && priceMatch;
+  });
+
+  // ================= ACTIONS =================
+  const handleAddToCart = (e, product) => {
+    e.stopPropagation();
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    let cart = JSON.parse(localStorage.getItem("cart")) || [];
+    if (!cart.some((item) => item._id === product._id)) {
+      cart.push({ ...product, quantity: 1 });
+      localStorage.setItem("cart", JSON.stringify(cart));
+      window.dispatchEvent(new Event("storage"));
+    }
+  };
+
+  const handleLike = (e, product) => {
+    e.stopPropagation();
+    let liked = JSON.parse(localStorage.getItem("likedProducts")) || [];
+    const exists = liked.some((p) => p._id === product._id);
+    liked = exists
+      ? liked.filter((p) => p._id !== product._id)
+      : [...liked, product];
+
+    localStorage.setItem("likedProducts", JSON.stringify(liked));
+    setLikedProducts(liked);
+  };
+
+  const isLiked = (id) => likedProducts.some((p) => p._id === id);
+
+  // ================= UI =================
   if (loading)
     return (
       <div className="loading-container">
@@ -53,94 +143,116 @@ export default function ProductByCategoryScreen() {
       </div>
     );
 
-  if (!products || products.length === 0)
-    return <p className="no-data">No products found for this {subCategoryId ? 'subcategory' : 'category'}.</p>;
-
-  const handleAddToCart = (e, product) => {
-    e.stopPropagation();
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login to add products to cart.");
-      navigate("/login");
-      return;
-    }
-
-    let cart = JSON.parse(localStorage.getItem("cart")) || [];
-    const existing = cart.find((item) => item._id === product._id);
-
-    if (!existing) {
-      cart.push({ ...product, selectedColor: product.variants?.[0]?.color || "", quantity: 1 });
-      localStorage.setItem("cart", JSON.stringify(cart));
-      alert(`Added "${product.name}" to cart!`);
-    } else {
-      alert(`"${product.name}" is already in your cart.`);
-    }
-
-    window.dispatchEvent(new Event("storage"));
-  };
-
-  const handleLike = (e, product) => {
-    e.stopPropagation();
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      alert("Please login to like products.");
-      navigate("/login");
-      return;
-    }
-
-    let liked = JSON.parse(localStorage.getItem("likedProducts")) || [];
-    const isLiked = liked.some((p) => p._id === product._id);
-
-    if (!isLiked) {
-      liked.push(product);
-    } else {
-      liked = liked.filter((p) => p._id !== product._id);
-    }
-
-    localStorage.setItem("likedProducts", JSON.stringify(liked));
-    setLikedProducts(liked);
-    window.dispatchEvent(new Event("storage"));
-    // ✅ Don't navigate to /likes, just update the heart icon
-  };
-
-  const isProductLiked = (productId) => likedProducts.some((p) => p._id === productId);
-
   return (
-    <div className="product-grid">
-      {products.map((product) => (
-        <div
-          key={product._id}
-          className="product-card"
-          onClick={() => navigate(`/productdetail/${product._id}`)}
+    <div className="page-layout">
+      {/* FILTER PANEL */}
+      <div className="filter-panel">
+        <h4>Filters</h4>
+
+        <div className="filter-group">
+          <label>Min Price</label>
+          <input
+            type="number"
+            value={filters.minPrice}
+            onChange={(e) =>
+              setFilters({ ...filters, minPrice: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="filter-group">
+          <label>Max Price</label>
+          <input
+            type="number"
+            value={filters.maxPrice}
+            onChange={(e) =>
+              setFilters({ ...filters, maxPrice: e.target.value })
+            }
+          />
+        </div>
+
+        <div className="filter-group">
+          <label>Color</label>
+          <select
+            value={filters.color}
+            onChange={(e) =>
+              setFilters({ ...filters, color: e.target.value })
+            }
+          >
+            <option value="">All</option>
+            {colors.map((c) => (
+              <option key={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div className="filter-group">
+          <label>Size</label>
+          <select
+            value={filters.size}
+            onChange={(e) =>
+              setFilters({ ...filters, size: e.target.value })
+            }
+          >
+            <option value="">All</option>
+            {sizes.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          className="clear-filter"
+          onClick={() =>
+            setFilters({
+              minPrice: "",
+              maxPrice: "",
+              color: "",
+              size: "",
+            })
+          }
         >
-          <div className="product-image-wrapper">
-            <img
-              src={product.images?.[0] ? `http://localhost:5000/${product.images[0]}` : ""}
-              alt={product.name}
-              onError={(e) => (e.target.style.display = "none")}
-            />
-            <FaHeart
-              className={`icon like-icon ${isProductLiked(product._id) ? "liked" : ""}`}
-              onClick={(e) => handleLike(e, product)}
-            />
-          </div>
-          <div className="product-info">
-            <div className="product-title">
-              <h3>{product.name}</h3>
-              <FaShoppingCart
-                className="icon cart-icon"
-                onClick={(e) => handleAddToCart(e, product)}
+          Clear Filters
+        </button>
+      </div>
+
+      {/* PRODUCT GRID */}
+      <div className="product-grid">
+        {filteredProducts.map((product) => (
+          <div
+            key={product._id}
+            className="product-card"
+            onClick={() => navigate(`/productdetail/${product._id}`)}
+          >
+            <div className="product-image-wrapper">
+              <img
+                src={`http://localhost:5000/${product.images?.[0]}`}
+                alt={product.name}
+              />
+              <FaHeart
+                className={`icon like-icon ${
+                  isLiked(product._id) ? "liked" : ""
+                }`}
+                onClick={(e) => handleLike(e, product)}
               />
             </div>
-            <p className="product-brand-price">
-              {product.brandId?.name ? `${product.brandId.name} - ` : ""}
-              ₹{product.variants?.[0]?.sizes?.[0]?.price || "N/A"}
-            </p>
+
+            <div className="product-info">
+              <div className="product-title">
+                <h3>{product.name}</h3>
+                <FaShoppingCart
+                  className="icon cart-icon"
+                  onClick={(e) => handleAddToCart(e, product)}
+                />
+              </div>
+              <p className="product-brand-price">
+                {product.brandId?.name} – ₹
+                {product.variants?.[0]?.sizes?.[0]?.price}
+              </p>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

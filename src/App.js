@@ -31,10 +31,13 @@ function App() {
         <Route path="/verify-email" element={<VerifyEmail />} />
         <Route path="/verify-otp" element={<VerifyOtp />} />
         <Route path="/category/:id" element={<SubCategoryScreen />} />
-        <Route path="/products/:subCategoryId" element={<ProductByCategoryScreen />} />
+        <Route
+          path="/products/:categoryId/:subCategoryId"
+          element={<ProductByCategoryScreen />}
+        />
         <Route path="/productdetail/:id" element={<ProductDetailScreen />} />
         <Route path="/cart" element={<CartScreen />} />
- <Route path="/likes" element={<LikesScreen />} />
+        <Route path="/likes" element={<LikesScreen />} />
         {/* Admin Routes with nested structure */}
         <Route
           path="/admin/home"
