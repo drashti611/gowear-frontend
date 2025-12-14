@@ -5,6 +5,7 @@ import {
   FiPackage,
   FiShoppingCart,
   FiUser,
+  FiGift,
   FiLogOut,
   FiMenu,
   FiChevronDown,
@@ -45,6 +46,7 @@ export default function AdminHome() {
       icon: <FiTag />,
       path: "clothing-types",
     },
+    { name: "Coupons", path: "coupons", icon: <FiGift /> },
     { name: "Orders", path: "orders", icon: <FiShoppingCart /> },
     { name: "Users", path: "users", icon: <FiUser /> },
   ];

@@ -18,6 +18,8 @@ import ProductDetailScreen from "./pages/Users/ProductDetailScreen";
 import AdminClothingTypePage from "./pages/Admin/AdminClothingTypePage";
 import CartScreen from "./pages/Users/CartScreen";
 import LikesScreen from "./pages/Users/LikesScreen";
+import AdminCouponsPage from "./pages/Admin/AdminCouponsPage";
+
 
 function App() {
   return (
@@ -53,7 +55,8 @@ function App() {
           <Route path="subcategories" element={<AdminSubCategories />} />
           <Route path="brands" element={<Brand />} />
           <Route path="products" element={<AdminProductPage />} />
-
+          <Route path="coupons" element={<AdminCouponsPage />} />
+          
           <Route path="clothing-types" element={<AdminClothingTypePage />} /> {/* <-- New Route */}
 
           <Route path="users" element={<AdminUsers />} />
