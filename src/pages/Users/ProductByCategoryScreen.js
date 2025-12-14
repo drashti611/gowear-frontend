@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaHeart, FaShoppingCart } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaShoppingCart } from "react-icons/fa";
 import API from "../../api/axios";
 import "../../css/Customercss/ProductByCategoryScreen.css";
 
@@ -123,14 +123,25 @@ export default function ProductByCategoryScreen() {
 
   const handleLike = (e, product) => {
     e.stopPropagation();
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
     let liked = JSON.parse(localStorage.getItem("likedProducts")) || [];
     const exists = liked.some((p) => p._id === product._id);
+
     liked = exists
       ? liked.filter((p) => p._id !== product._id)
       : [...liked, product];
 
     localStorage.setItem("likedProducts", JSON.stringify(liked));
     setLikedProducts(liked);
+
+    // Notify other components if needed
+    window.dispatchEvent(new Event("storage"));
   };
 
   const isLiked = (id) => likedProducts.some((p) => p._id === id);
@@ -142,6 +153,8 @@ export default function ProductByCategoryScreen() {
         <div className="spinner"></div>
       </div>
     );
+
+  const isLoggedIn = !!localStorage.getItem("token");
 
   return (
     <div className="page-layout">
@@ -229,12 +242,21 @@ export default function ProductByCategoryScreen() {
                 src={`http://localhost:5000/${product.images?.[0]}`}
                 alt={product.name}
               />
-              <FaHeart
-                className={`icon like-icon ${
-                  isLiked(product._id) ? "liked" : ""
-                }`}
-                onClick={(e) => handleLike(e, product)}
-              />
+
+              {/* LIKE BUTTON */}
+              {isLiked(product._id) ? (
+                <FaHeart
+                  className={`icon like-icon liked ${
+                    !isLoggedIn ? "disabled" : ""
+                  }`}
+                  onClick={(e) => handleLike(e, product)}
+                />
+              ) : (
+                <FaRegHeart
+                  className={`icon like-icon ${!isLoggedIn ? "disabled" : ""}`}
+                  onClick={(e) => handleLike(e, product)}
+                />
+              )}
             </div>
 
             <div className="product-info">

@@ -30,37 +30,41 @@ export default function CartScreen() {
     updateCart(updatedCart);
   };
 
-  // Total items
+  /* ======================
+     TOTAL CALCULATIONS
+     (UNCHANGED LOGIC)
+  ====================== */
+
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  // Total MRP (sum of original prices × quantity)
   const totalMRP = cart.reduce((acc, item) => {
     const basePrice =
-      item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]?.price ||
+      item.variants
+        ?.find((v) => v.color === item.selectedColor)
+        ?.sizes?.[0]?.price ||
       item.price ||
       0;
     return acc + basePrice * item.quantity;
   }, 0);
 
-  // Total discount on MRP
   const totalDiscount = cart.reduce((acc, item) => {
     const basePrice =
-      item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]?.price ||
+      item.variants
+        ?.find((v) => v.color === item.selectedColor)
+        ?.sizes?.[0]?.price ||
       item.price ||
       0;
-    const discountAmount = item.discount ? (basePrice * item.discount) / 100 : 0;
+    const discountAmount = item.discount
+      ? (basePrice * item.discount) / 100
+      : 0;
     return acc + discountAmount * item.quantity;
   }, 0);
 
-  // Total amount after discount
   const totalAmount = totalMRP - totalDiscount;
-
-  // Shipping calculation
   const freeShippingThreshold = 3000;
   const shipping = totalAmount >= freeShippingThreshold ? 0 : 100;
   const finalTotal = totalAmount + shipping;
 
-  // Amount left for free shipping
   const amountForFreeShipping =
     totalAmount >= freeShippingThreshold
       ? 0
@@ -71,16 +75,22 @@ export default function CartScreen() {
 
   return (
     <div className="cart-wrapper">
-      {/* Left: Cart Items */}
+      {/* LEFT */}
       <div className="cart-left">
         {cart.map((item) => {
           const basePrice =
-            item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]?.price ||
+            item.variants
+              ?.find((v) => v.color === item.selectedColor)
+              ?.sizes?.[0]?.price ||
             item.price ||
             0;
+
           const discountedPrice = item.discount
             ? basePrice - (basePrice * item.discount) / 100
             : basePrice;
+
+          const variant =
+            item.variants?.find((v) => v.color === item.selectedColor);
 
           return (
             <div className="cart-item" key={item._id}>
@@ -90,33 +100,71 @@ export default function CartScreen() {
                   alt={item.name}
                 />
               </div>
+
               <div className="cart-item-details">
                 <h3 className="cart-item-name">{item.name}</h3>
+
                 {item.discount > 0 && (
                   <span className="cart-discount">{item.discount}% OFF</span>
                 )}
-                <p>Color: <strong>{item.selectedColor || "N/A"}</strong></p>
+
+                <p>
+                  Color: <strong>{item.selectedColor || "N/A"}</strong>
+                </p>
+
+                {/* ✅ SIZE SHOW + EDIT (ADDED ONLY) */}
+                <div className="cart-size">
+                  <label>Size:</label>
+                  <select
+                    value={item.selectedSize || ""}
+                    onChange={(e) => {
+                      const updatedCart = cart.map((c) =>
+                        c._id === item._id
+                          ? { ...c, selectedSize: e.target.value }
+                          : c
+                      );
+                      updateCart(updatedCart);
+                    }}
+                  >
+                    {variant?.sizes?.map((s, i) => (
+                      <option key={i} value={s.size}>
+                        {s.size}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* PRICE (UNCHANGED) */}
                 <div className="cart-price">
                   {item.discount > 0 ? (
                     <>
-                      <span className="cart-price-discounted">₹{discountedPrice.toFixed(2)}</span>
-                      <span className="cart-price-original">₹{basePrice.toFixed(2)}</span>
+                      <span className="cart-price-discounted">
+                        ₹{discountedPrice.toFixed(2)}
+                      </span>
+                      <span className="cart-price-original">
+                        ₹{basePrice.toFixed(2)}
+                      </span>
                     </>
                   ) : (
-                    <span className="cart-price-discounted">₹{basePrice.toFixed(2)}</span>
+                    <span className="cart-price-discounted">
+                      ₹{basePrice.toFixed(2)}
+                    </span>
                   )}
                 </div>
+
                 <div className="cart-qty">
                   <label>Qty:</label>
                   <input
                     type="number"
                     min="1"
                     value={item.quantity}
-                    onChange={(e) => handleQuantityChange(item._id, e.target.value)}
+                    onChange={(e) =>
+                      handleQuantityChange(item._id, e.target.value)
+                    }
                   />
                 </div>
-               
               </div>
+
               <button
                 className="cart-remove-btn"
                 onClick={() => handleRemove(item._id)}
@@ -126,6 +174,7 @@ export default function CartScreen() {
             </div>
           );
         })}
+
         <button
           className="cart-continue-btn"
           onClick={() => navigate("/")}
@@ -134,7 +183,7 @@ export default function CartScreen() {
         </button>
       </div>
 
-      {/* Right: Summary */}
+      {/* RIGHT */}
       <div className="cart-right">
         <div className="cart-summary-box">
           <h3>Price Details</h3>
@@ -149,24 +198,29 @@ export default function CartScreen() {
             <span>Total Items</span>
             <span>{totalItems}</span>
           </div>
+
           <div className="cart-summary-row">
             <span>Total MRP</span>
             <span>₹{totalMRP.toFixed(2)}</span>
           </div>
+
           <div className="cart-summary-row">
             <span>Discount on MRP</span>
             <span>₹{totalDiscount.toFixed(2)}</span>
           </div>
+
           <div className="cart-summary-row total">
             <span>Total Amount</span>
             <span>₹{totalAmount.toFixed(2)}</span>
           </div>
+
           <div className="cart-summary-row">
             <span>Shipping</span>
             <span style={{ color: shipping === 0 ? "green" : "#000" }}>
               {shipping === 0 ? "Free Shipping" : `₹${shipping}`}
             </span>
           </div>
+
           <div className="cart-summary-row total">
             <span>Final Total</span>
             <span>₹{finalTotal.toFixed(2)}</span>

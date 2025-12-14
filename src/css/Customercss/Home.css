@@ -71,7 +71,7 @@ body {
 }
 
 /* Like icon */
-.like-icon {
+/* .like-icon {
   position: absolute;
   top: 12px;
   right: 12px;
@@ -89,7 +89,28 @@ body {
 .like-icon.liked {
   color: #c71e44;
   animation: heart-bounce 0.3s ease;
+} */
+
+.like-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  color: black;
+  font-size: 1.7rem;
+  cursor: pointer;
+  transition: transform 0.3s;
+  z-index: 2;
 }
+
+.like-icon:hover {
+  transform: scale(1.3);
+}
+
+.like-icon.liked {
+  color: #c71e44;
+  animation: heart-bounce 0.3s ease;
+}
+
 
 @keyframes heart-bounce {
   0% { transform: scale(1); }

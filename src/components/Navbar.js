@@ -283,10 +283,12 @@ export default function Navbar() {
           {/* Action Icons */}
           <div className="nav-actions">
             {/* Wishlist */}
+            {/* Wishlist */}
             <div className="action-btn" onClick={handleWishlistClick}>
               <div className="action-icon-box">
                 <FaHeart className="action-icon" />
-                {likeCount > 0 && <span className="action-badge">{likeCount}</span>}
+                {/* Show count only if logged in */}
+                {token && likeCount > 0 && <span className="action-badge">{likeCount}</span>}
               </div>
               <span className="action-text">Wishlist</span>
             </div>
@@ -295,10 +297,12 @@ export default function Navbar() {
             <div className="action-btn" onClick={handleCartClick}>
               <div className="action-icon-box">
                 <FaShoppingBag className="action-icon" />
-                {cartCount > 0 && <span className="action-badge">{cartCount}</span>}
+                {/* Show count only if logged in */}
+                {token && cartCount > 0 && <span className="action-badge">{cartCount}</span>}
               </div>
               <span className="action-text">Bag</span>
             </div>
+
 
             {/* Profile / Login */}
             {!token ? (

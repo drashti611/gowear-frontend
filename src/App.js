@@ -40,7 +40,6 @@ function App() {
         <Route path="/productdetail/:id" element={<ProductDetailScreen />} />
         <Route path="/cart" element={<CartScreen />} />
         <Route path="/likes" element={<LikesScreen />} />
-        {/* Admin Routes with nested structure */}
         <Route
           path="/admin/home"
           element={
