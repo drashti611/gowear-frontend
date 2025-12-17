@@ -7,6 +7,7 @@ import VerifyEmail from "./pages/VerifyEmail";
 import VerifyOtp from "./pages/VerifyOtp";
 import AdminCategoryPage from "./pages/Admin/AdminCategoryPage";
 import ProtectedRoute from "./pages/Admin/ProtectedRoute";
+import CustomerRoute from "./pages/Users/ChilderRoute";
 import AdminHome from "./pages/Admin/AdminHome";
 import AdminSubCategories from "./pages/Admin/AdminSubCategories";
 import Brand from "./pages/Admin/Brand";
@@ -41,11 +42,46 @@ function App() {
           element={<ProductByCategoryScreen />}
         />
         <Route path="/productdetail/:id" element={<ProductDetailScreen />} />
-        <Route path="/cart" element={<CartScreen />} />
-        <Route path="/likes" element={<LikesScreen />} />
-        <Route path="/checkout" element={<Checkout />} />
-        <Route path="/orders" element={<FetachOrders />} />
-        <Route path="/profile" element={<AccountSetting />} />
+        <Route
+          path="/cart"
+          element={
+            <CustomerRoute>
+              <CartScreen />
+            </CustomerRoute>
+          }
+        />
+        <Route
+          path="/likes"
+          element={
+            <CustomerRoute>
+              <LikesScreen />
+            </CustomerRoute>
+          }
+        />
+        <Route
+          path="/checkout"
+          element={
+            <CustomerRoute>
+              <Checkout />
+            </CustomerRoute>
+          }
+        />
+        <Route
+          path="/orders"
+          element={
+            <CustomerRoute>
+              <FetachOrders />
+            </CustomerRoute>
+          }
+        />
+        <Route
+          path="/profile"
+          element={
+            <CustomerRoute>
+              <AccountSetting />
+            </CustomerRoute>
+          }
+        />
         <Route
           path="/admin/home"
           element={
