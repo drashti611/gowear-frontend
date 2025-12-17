@@ -24,6 +24,8 @@ import AdminOrderList from "./pages/Admin/AdminOrderList";
 import Checkout from "./pages/Users/CheckOut";
 import FetachOrders from "./pages/Users/FetachOrders";
 import AccountSetting from "./pages/Users/AccountSetting";
+import SearchResults from "./pages/Users/Search";
+
 
 function App() {
   return (
@@ -57,7 +59,8 @@ function App() {
               <LikesScreen />
             </CustomerRoute>
           }
-        />
+        /><Route path="/search" element={<SearchResults />} />
+
         <Route
           path="/checkout"
           element={
@@ -97,6 +100,7 @@ function App() {
           <Route path="brands" element={<Brand />} />
           <Route path="products" element={<AdminProductPage />} />
           <Route path="coupons" element={<AdminCouponsPage />} />
+
           <Route
             path="clothing-types"
             element={<AdminClothingTypePage />}

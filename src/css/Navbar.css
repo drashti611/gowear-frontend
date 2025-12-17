@@ -901,6 +901,19 @@ input {
   transition-property: all;
   transition-duration: 0.3s;
 }
+.search-icon-only {
+  cursor: pointer;
+  color: #333; /* icon color */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem;
+  transition: color 0.2s ease;
+}
+
+.search-icon-only:hover {
+  color: #4f46e5; /* hover color */
+}
 
 /* ==================== ACCESSIBILITY ==================== */
 button:focus-visible,
@@ -908,7 +921,27 @@ input:focus-visible,
 a:focus-visible {
   outline: 2px solid #667eea;
   outline-offset: 2px;
+}/* Navbar.css */
+
+/* Gap between categories and search icon */
+.nav-categories {
+  display: flex;
+  gap: 20px; /* existing gap between categories */
 }
+
+.search-icon-only {
+  margin-left: 600px; /* 100px gap from categories */
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+@media (max-width: 992px) {
+  .search-icon-only {
+    margin-left: 20px; /* mobile ke liye chhota gap */
+  }
+}
+
 
 /* ==================== PREVENT LAYOUT SHIFT ==================== */
 .main-nav {

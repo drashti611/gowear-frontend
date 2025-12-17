@@ -228,7 +228,7 @@ export default function Navbar() {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      navigate(`/search?q=${encodeURIComponent(searchTerm.trim())}`);
+      navigate(`search?q=${encodeURIComponent(searchTerm.trim())}`);
       setSearchTerm("");
       setMobileMenuOpen(false);
     }
@@ -317,19 +317,16 @@ export default function Navbar() {
           </div>
 
           {/* Search Bar */}
-          <form className="search-form" onSubmit={handleSearch}>
-            <FaSearch className="search-icon" />
-            <input
-              type="text"
-              placeholder="Search for products, brands and more..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="search-input"
-            />
-            <button type="submit" className="search-submit">
-              Search
-            </button>
-          </form>
+        
+<div
+  className="search-icon-only"
+  onClick={() => navigate("/search")}
+  title="Search"
+>
+  <FaSearch size={18} />
+</div>
+
+
 
           {/* Action Icons */}
           <div className="nav-actions">
