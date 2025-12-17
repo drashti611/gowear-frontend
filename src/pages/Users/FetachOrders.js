@@ -5,7 +5,8 @@ import API from "../../api/axios";
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [expandedOrders, setExpandedOrders] = useState({}); // Track expanded state
+  const [expandedOrders, setExpandedOrders] = useState({});
+  const [filterStatus, setFilterStatus] = useState("All");
 
   const userId = localStorage.getItem("userId");
 
@@ -61,15 +62,45 @@ export default function MyOrders() {
     }
   };
 
-  if (loading) return <p className="orders-loading">Loading orders...</p>;
-  if (orders.length === 0)
-    return <p className="orders-empty">No orders found.</p>;
+  const filteredOrders =
+    filterStatus === "All"
+      ? orders
+      : orders.filter((order) => order.orderStatus === filterStatus);
 
   return (
     <div className="orders-container">
       <h2>My Orders</h2>
 
-      {orders.map((order) => (
+      {/* ===== FILTER DROPDOWN ALWAYS VISIBLE ===== */}
+      <div style={{ marginBottom: "1rem" }}>
+        <label htmlFor="statusFilter" style={{ marginRight: "0.5rem" }}>
+          Filter by Status:
+        </label>
+        <select
+          id="statusFilter"
+          value={filterStatus}
+          onChange={(e) => setFilterStatus(e.target.value)}
+          style={{ padding: "0.3rem 0.5rem", borderRadius: "5px" }}
+        >
+          <option value="All">All</option>
+          <option value="Pending">Pending</option>
+          <option value="Processing">Processing</option>
+          <option value="Shipped">Shipped</option>
+          <option value="Delivered">Delivered</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+      </div>
+
+      {/* ===== LOADING STATE ===== */}
+      {loading && <p className="orders-loading">Loading orders...</p>}
+
+      {/* ===== NO ORDERS FOUND ===== */}
+      {!loading && filteredOrders.length === 0 && (
+        <p className="orders-empty">No orders found for selected status.</p>
+      )}
+
+      {/* ===== ORDERS LIST ===== */}
+      {filteredOrders.map((order) => (
         <div className="order-card" key={order._id}>
           {/* ORDER HEADER */}
           <div className="order-header">
@@ -82,7 +113,7 @@ export default function MyOrders() {
             </div>
           </div>
 
-          {/* PRODUCT ITEMS - Always Visible */}
+          {/* PRODUCT ITEMS */}
           {order.items.map((item) => (
             <div className="order-item" key={item._id}>
               <img
@@ -105,10 +136,9 @@ export default function MyOrders() {
             </div>
           ))}
 
-          {/* COLLAPSIBLE ORDER DETAILS */}
+          {/* COLLAPSIBLE DETAILS */}
           {expandedOrders[order._id] && (
             <>
-              {/* ORDER SUMMARY */}
               <div className="order-summary">
                 <p>
                   Total Amount: <strong>₹{order.totalAmount.toFixed(2)}</strong>
@@ -128,7 +158,6 @@ export default function MyOrders() {
                 )}
               </div>
 
-              {/* ADDRESS */}
               <div className="order-address">
                 <strong>Delivery Address:</strong>
                 <p>
@@ -137,7 +166,6 @@ export default function MyOrders() {
                 </p>
               </div>
 
-              {/* STATUS + CANCEL */}
               <div className="order-status">
                 <span>
                   Payment:{" "}
@@ -169,15 +197,15 @@ export default function MyOrders() {
             </>
           )}
 
-          {/* VIEW MORE / LESS BUTTON */}
+          {/* VIEW MORE BUTTON */}
           <div style={{ padding: "1rem 2rem" }}>
             <button
               className="cancel-btn"
-             style={{
-      backgroundColor: "white",      // White background
-      color: "#4f46e5",               // Text in purple
-      border: "2px solid #4f46e5"     // Optional: purple border for better visibility
-    }}
+              style={{
+                backgroundColor: "white",
+                color: "#4f46e5",
+                border: "2px solid #4f46e5",
+              }}
               onClick={() => toggleExpand(order._id)}
             >
               {expandedOrders[order._id] ? "View Less" : "View More"}
