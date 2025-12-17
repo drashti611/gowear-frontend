@@ -1,134 +1,147 @@
-/* ================= SEARCH RESULTS CSS ================= */
+/* ================= VARIABLES ================= */
+:root {
+  --primary: #0d6efd;
+  --text: #111827;
+  --muted: #6b7280;
+  --border: #e5e7eb;
+  --bg: #ffffff;
+  --hover: #f9fafb;
+  font-family: "Poppins", sans-serif;
+}
 
+/* ================= PAGE ================= */
 .search-page {
-  max-width: 1200px;
+  max-width: 900px;
   margin: 20px auto;
-  padding: 0 20px;
-  font-family: 'Poppins', sans-serif;
+  padding: 0 16px;
 }
 
+/* Title */
 .search-page h2 {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
-  margin-bottom: 20px;
-  color: #0d6efd;
   text-align: center;
+  margin-bottom: 16px;
 }
 
-/* Search Form */
-.search-page form {
+/* ================= SEARCH BAR ================= */
+.search-form {
   display: flex;
+  gap: 8px;
   justify-content: center;
-  margin-bottom: 30px;
-  gap: 10px;
-  flex-wrap: wrap;
+  margin-bottom: 14px;
 }
 
-.search-page input[type="text"] {
-  padding: 10px 15px;
-  width: 300px;
-  max-width: 100%;
-  border: 1px solid #ccc;
+.search-form input {
+  width: 100%;
+  max-width: 420px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+}
+
+.search-form button {
+  padding: 10px 16px;
+  background: var(--primary);
+  border: none;
+  color: #fff;
   border-radius: 6px;
   font-size: 14px;
-  transition: all 0.3s ease;
-}
-
-.search-page input[type="text"]:focus {
-  outline: none;
-  border-color: #0d6efd;
-  box-shadow: 0 0 5px rgba(13, 110, 253, 0.3);
-}
-
-.search-page button {
-  padding: 10px 20px;
-  background-color: #0d6efd;
-  color: #fff;
-  border: none;
-  border-radius: 6px;
   cursor: pointer;
-  font-weight: 500;
-  transition: all 0.3s ease;
 }
 
-.search-page button:hover {
-  background-color: #0b5ed7;
-}
-
-/* Results Grid */
+/* ================= RESULTS LIST ================= */
 .search-results {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
 }
 
+/* ================= COMPACT ROW ================= */
 .search-item {
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  overflow: hidden;
-  text-align: center;
-  padding: 10px;
-  transition: transform 0.3s, box-shadow 0.3s;
-  background-color: #fff;
+  display: grid;
+  grid-template-columns: 50px 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 20px 20px;
+  height: 100px;
+  border-radius: 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}.search-results {
+  display: grid;
+  grid-template-columns: 1fr; /* column view */
+  row-gap: 14px;              /* 👈 PRODUCTS KE BEECH GAP */
 }
+
 
 .search-item:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.1);
+  background: var(--hover);
 }
 
+/* ================= IMAGE ================= */
 .search-item img {
-  width: 100%;
-  height: 150px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
-  margin-bottom: 10px;
+  border-radius: 4px;
+  background: #f3f4f6;
 }
 
+/* ================= TEXT STACK ================= */
 .search-item h4 {
-  font-size: 16px;
-  margin-bottom: 5px;
-  color: #333;
+  font-size: 13px;
   font-weight: 500;
+  color: var(--text);
+  margin: 0;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Category (if you add later) */
+.search-item .category {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Price row */
 .search-item p {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-  color: #0d6efd;
+  color: var(--primary);
+  margin: 2px 0 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
 }
 
-/* No results message */
-.search-results p {
-  grid-column: 1 / -1;
-  text-align: center;
-  color: #555;
-  font-size: 16px;
-  margin-top: 20px;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .search-page form {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .search-page input[type="text"] {
-    width: 100%;
-  }
 .discounted-price {
-  color: #0d6efd;
-  font-weight: 600;
+  color: var(--primary);
 }
 
 .original-price {
-  color: #999;
+  font-size: 12px;
+  color: #9ca3af;
   text-decoration: line-through;
-  margin-left: 5px;
-  font-size: 14px;
 }
 
-  .search-results {
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+/* ================= EMPTY ================= */
+.no-results {
+  text-align: center;
+  padding: 20px;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* ================= MOBILE ================= */
+@media (max-width: 480px) {
+  .search-item {
+    height: auto;
+    padding: 8px;
   }
 }
