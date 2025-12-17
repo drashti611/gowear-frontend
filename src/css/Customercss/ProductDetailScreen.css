@@ -324,7 +324,23 @@
   100% {
     transform: rotate(360deg);
   }
+}.out-of-stock {
+  opacity: 0.5;
+  pointer-events: none;
 }
+
+.stock-warning {
+  color: #d97706;
+  font-size: 12px;
+  display: block;
+}
+
+.stock-error {
+  color: red;
+  font-size: 12px;
+  display: block;
+}
+
 
 /* Responsive */
 @media (max-width: 900px) {

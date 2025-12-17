@@ -9,6 +9,7 @@ export default function ProductDetailScreen() {
   const navigate = useNavigate();
 
   const userId = localStorage.getItem("userId");
+
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -18,8 +19,6 @@ export default function ProductDetailScreen() {
   const [mainImage, setMainImage] = useState("");
   const [liked, setLiked] = useState(false);
   const [toast, setToast] = useState("");
-
-  const [likedProducts, setLikedProducts] = useState([]);
 
   useEffect(() => {
     if (!id) {
@@ -36,8 +35,7 @@ export default function ProductDetailScreen() {
 
         if (userId) {
           const wishRes = await API.get(`/wishlist/${userId}`);
-          const isLiked = wishRes.data.some((p) => p._id === res.data._id);
-          setLiked(isLiked);
+          setLiked(wishRes.data.some((p) => p._id === res.data._id));
         }
       } catch (err) {
         console.error(err);
@@ -49,14 +47,21 @@ export default function ProductDetailScreen() {
     fetchProduct();
   }, [id]);
 
-  // Reset size when color changes
   useEffect(() => {
     setSelectedSize("");
   }, [selectedColor]);
 
+  const selectedVariant = product?.variants?.find(
+    (v) => v.color === selectedColor
+  );
+
+  const selectedSizeObj = selectedVariant?.sizes?.find(
+    (s) => s.size === selectedSize
+  );
+
+  // ✅ ADD TO CART WITH STOCK CHECK
   const handleAddToCart = async () => {
     const token = localStorage.getItem("token");
-    const userId = localStorage.getItem("userId");
 
     if (!token || !userId) {
       alert("Please login to add products to cart.");
@@ -64,19 +69,13 @@ export default function ProductDetailScreen() {
       return;
     }
 
-    if (!selectedSize || !selectedColor) {
-      setToast("⚠️ Please select color and size.");
-      setTimeout(() => setToast(""), 2000);
+    if (!selectedColor || !selectedSize) {
+      setToast("⚠️ Please select color and size");
       return;
     }
 
-    // find selected variant price
-    const variant = product.variants.find((v) => v.color === selectedColor);
-
-    const sizeObj = variant?.sizes.find((s) => s.size === selectedSize);
-
-    if (!sizeObj) {
-      setToast("Invalid size selection");
+    if (!selectedSizeObj || selectedSizeObj.stock <= 0) {
+      setToast("❌ This product is out of stock");
       return;
     }
 
@@ -89,16 +88,14 @@ export default function ProductDetailScreen() {
           size: selectedSize,
         },
         quantity: 1,
-        price: sizeObj.price,
+        price: selectedSizeObj.price,
       });
 
-      // 🔔 notify navbar/cart badge
       window.dispatchEvent(new Event("cartUpdated"));
-
-      setToast(`Added "${product.name}" (${selectedSize}) to cart`);
+      setToast("✅ Product added to cart");
     } catch (err) {
       console.error(err);
-      setToast("Failed to add product to cart");
+      setToast("❌ Failed to add product");
     }
 
     setTimeout(() => setToast(""), 2000);
@@ -115,22 +112,18 @@ export default function ProductDetailScreen() {
 
     try {
       if (liked) {
-        // REMOVE
         await API.post("/wishlist/remove", {
           userId,
           productId: product._id,
         });
-        setLiked(false);
       } else {
-        // ADD
         await API.post("/wishlist/add", {
           userId,
           productId: product._id,
         });
-        setLiked(true);
       }
 
-      // 🔔 UPDATE NAVBAR COUNT
+      setLiked(!liked);
       window.dispatchEvent(new Event("wishlistUpdated"));
     } catch (err) {
       console.error(err);
@@ -146,23 +139,15 @@ export default function ProductDetailScreen() {
 
   if (!product) return <p className="no-data">Product not found.</p>;
 
-  const selectedVariant = product.variants?.find(
-    (v) => v.color === selectedColor
-  );
-
   return (
     <div className="detail-container">
       {/* LEFT */}
       <div className="detail-left">
         <div className="main-image-wrapper">
-          {mainImage ? (
-            <img
-              src={`http://localhost:5000/${mainImage}`}
-              alt={product.name}
-            />
-          ) : (
-            <div className="no-image">No Image</div>
-          )}
+          <img
+            src={`http://localhost:5000/${mainImage}`}
+            alt={product.name}
+          />
         </div>
 
         <div className="thumbnails">
@@ -170,7 +155,7 @@ export default function ProductDetailScreen() {
             <img
               key={i}
               src={`http://localhost:5000/${img}`}
-              alt={product.name}
+              alt=""
               className={mainImage === img ? "selected" : ""}
               onClick={() => setMainImage(img)}
             />
@@ -188,16 +173,7 @@ export default function ProductDetailScreen() {
       {/* RIGHT */}
       <div className="detail-right">
         <h2>{product.name}</h2>
-        <p className="product-description">
-          {product.description || "No description available"}
-        </p>
-
-        <p>
-          <strong>Brand:</strong> {product.brandId?.name || "N/A"}
-        </p>
-        <p>
-          <strong>Category:</strong> {product.categoryId?.name || "N/A"}
-        </p>
+        <p>{product.description}</p>
 
         {/* COLORS */}
         <div className="colors-section">
@@ -211,7 +187,7 @@ export default function ProductDetailScreen() {
                 }`}
                 style={{ backgroundColor: v.color }}
                 onClick={() => setSelectedColor(v.color)}
-              ></div>
+              />
             ))}
           </div>
         </div>
@@ -224,15 +200,23 @@ export default function ProductDetailScreen() {
               {selectedVariant.sizes.map((s, i) => (
                 <div
                   key={i}
-                  className={`size-box ${
-                    selectedSize === s.size ? "selected" : ""
-                  }`}
-                  onClick={() => setSelectedSize(s.size)}
+                  className={`size-box 
+                    ${selectedSize === s.size ? "selected" : ""}
+                    ${s.stock === 0 ? "out-of-stock" : ""}
+                  `}
+                  onClick={() => s.stock > 0 && setSelectedSize(s.size)}
                 >
-                  <span className="size-label">{s.size}</span>
-                  <span className="size-price">₹{s.price}</span>
-                  {s.discount && (
-                    <span className="discount">-{s.discount}%</span>
+                  <span>{s.size}</span>
+                  <span>₹{s.price}</span>
+
+                  {s.stock === 0 && (
+                    <span className="stock-error">Out of Stock</span>
+                  )}
+
+                  {s.stock > 0 && s.stock < 10 && (
+                    <span className="stock-warning">
+                      ⚠️ Few pieces left
+                    </span>
                   )}
                 </div>
               ))}
@@ -244,7 +228,7 @@ export default function ProductDetailScreen() {
         <button
           className="add-to-cart-btn"
           onClick={handleAddToCart}
-          disabled={!selectedSize}
+          disabled={!selectedSize || selectedSizeObj?.stock <= 0}
         >
           <FaShoppingCart /> Add to Cart
         </button>

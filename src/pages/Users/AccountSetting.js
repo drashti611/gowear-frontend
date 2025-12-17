@@ -101,11 +101,11 @@ const AccountSetting = () => {
     fetchAddresses();
   };
 
-  if (loading) return <p>Loading...</p>;
+  if (loading) return <p className="loading">Loading...</p>;
 
   return (
     <div className="account-setting">
-      <h2>Account</h2>
+      <h2>Account Settings</h2>
 
       {/* ================= PROFILE ================= */}
       <div className="profile-card">
@@ -141,6 +141,7 @@ const AccountSetting = () => {
               onChange={(e) =>
                 setProfileData({ ...profileData, name: e.target.value })
               }
+              placeholder="Name"
               required
             />
             <input
@@ -149,6 +150,7 @@ const AccountSetting = () => {
               onChange={(e) =>
                 setProfileData({ ...profileData, email: e.target.value })
               }
+              placeholder="Email"
               required
             />
             <input
@@ -157,10 +159,11 @@ const AccountSetting = () => {
               onChange={(e) =>
                 setProfileData({ ...profileData, phone: e.target.value })
               }
+              placeholder="Phone"
             />
 
             <div className="action-btns">
-              <button className="save-btn">Save</button>
+              <button className="save-btn" type="submit">Save</button>
               <button
                 type="button"
                 className="cancel-btn"
@@ -182,14 +185,18 @@ const AccountSetting = () => {
         ) : (
           addresses.map((addr) => (
             <div className="address-box" key={addr._id}>
-              <strong>{addr.label}</strong>
-              <p>
-                {addr.street}, {addr.city}, {addr.state} - {addr.pincode}
-              </p>
-              <button onClick={() => handleEditAddress(addr)}>Edit</button>
-              <button onClick={() => handleDeleteAddress(addr._id)}>
-                Remove
-              </button>
+              <div>
+                <strong>{addr.label}</strong>
+                <p>
+                  {addr.street}, {addr.city}, {addr.state} - {addr.pincode}
+                </p>
+              </div>
+              <div className="address-actions">
+                <button onClick={() => handleEditAddress(addr)}>Edit</button>
+                <button onClick={() => handleDeleteAddress(addr._id)}>
+                  Remove
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -239,7 +246,7 @@ const AccountSetting = () => {
             required
           />
 
-          <button className="save-btn">
+          <button className="save-btn" type="submit">
             {editingAddressId ? "Update Address" : "Add Address"}
           </button>
         </form>

@@ -1,26 +1,49 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaHeart, FaRegHeart, FaShoppingCart } from "react-icons/fa";
+import { FaHeart, FaRegHeart, FaFilter, FaTimes } from "react-icons/fa";
 import API from "../../api/axios";
 import "../../css/Customercss/ProductByCategoryScreen.css";
 
 export default function ProductByCategoryScreen() {
   const [showFilter, setShowFilter] = useState(false);
   const userId = localStorage.getItem("userId");
-
   const { categoryId, subCategoryId } = useParams();
   const navigate = useNavigate();
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [likedProducts, setLikedProducts] = useState([]);
-
   const [filters, setFilters] = useState({
     minPrice: "",
     maxPrice: "",
     color: "",
     size: "",
   });
+
+  // ================= HELPER FUNCTIONS FOR STOCK =================
+  const getProductStock = (product) => {
+    if (!product.variants || product.variants.length === 0) return 0;
+    
+    let totalStock = 0;
+    product.variants.forEach(variant => {
+      if (variant.sizes && variant.sizes.length > 0) {
+        variant.sizes.forEach(size => {
+          totalStock += size.stock || 0;
+        });
+      }
+    });
+    
+    return totalStock;
+  };
+
+  const isOutOfStock = (product) => {
+    return getProductStock(product) === 0;
+  };
+
+  const isLowStock = (product) => {
+    const stock = getProductStock(product);
+    return stock > 0 && stock < 10;
+  };
 
   // ================= LOAD WISHLIST FROM API =================
   useEffect(() => {
@@ -51,23 +74,18 @@ export default function ProductByCategoryScreen() {
 
     try {
       if (alreadyLiked) {
-        // REMOVE
         await API.post("/wishlist/remove", {
           userId,
           productId: product._id,
         });
-
         setLikedProducts((prev) => prev.filter((p) => p._id !== product._id));
       } else {
-        // ADD
         await API.post("/wishlist/add", {
           userId,
           productId: product._id,
         });
-
         setLikedProducts((prev) => [...prev, product]);
       }
-      // 🔥 THIS LINE IS REQUIRED
       window.dispatchEvent(new Event("wishlistUpdated"));
     } catch (err) {
       console.error(err);
@@ -80,9 +98,7 @@ export default function ProductByCategoryScreen() {
 
     const fetchProducts = async () => {
       try {
-        let res;
-
-        res = await API.get(
+        const res = await API.get(
           `/product/getProductsByCategoryAndSubCategory/${categoryId}/${subCategoryId}`
         );
         window.dispatchEvent(new Event("wishlistUpdated"));
@@ -146,150 +162,283 @@ export default function ProductByCategoryScreen() {
     return colorMatch && sizeMatch && priceMatch;
   });
 
-  // ================= ACTIONS =================
-  // const handleAddToCart = (e, product) => {
-  //   e.stopPropagation();
-  //   const token = localStorage.getItem("token");
-
-  //   if (!token) {
-  //     navigate("/login");
-  //     return;
-  //   }
-
-  //   let cart = JSON.parse(localStorage.getItem("cart")) || [];
-  //   if (!cart.some((item) => item._id === product._id)) {
-  //     cart.push({ ...product, quantity: 1 });
-  //     localStorage.setItem("cart", JSON.stringify(cart));
-  //     window.dispatchEvent(new Event("storage"));
-  //   }
-  // };
-
   const isLiked = (id) => likedProducts.some((p) => p._id === id);
+  const isLoggedIn = !!localStorage.getItem("token");
+
+  const activeFiltersCount = [
+    filters.minPrice,
+    filters.maxPrice,
+    filters.color,
+    filters.size,
+  ].filter(Boolean).length;
 
   // ================= UI =================
-  if (loading)
+  if (loading) {
     return (
       <div className="loading-container">
         <div className="spinner"></div>
+        <p className="loading-text">Loading products...</p>
       </div>
     );
-
-  const isLoggedIn = !!localStorage.getItem("token");
+  }
 
   return (
-    <div className="page-layout">
-      {/* FILTER PANEL */}
-      <div className="filter-panel">
-        <h4>Filters</h4>
+    <div className="product-category-container">
+      {/* Mobile Filter Toggle Button */}
+      <button
+        className="mobile-filter-btn"
+        onClick={() => setShowFilter(!showFilter)}
+      >
+        <FaFilter style={{ fontSize: "16px" }} />
+        <span className="filter-btn-text">Filters</span>
+        {activeFiltersCount > 0 && (
+          <span className="filter-badge">{activeFiltersCount}</span>
+        )}
+      </button>
 
-        <div className="filter-group">
-          <label>Min Price</label>
-          <input
-            type="number"
-            value={filters.minPrice}
-            onChange={(e) =>
-              setFilters({ ...filters, minPrice: e.target.value })
-            }
-          />
-        </div>
+      {/* Filter Overlay for Mobile */}
+      {showFilter && (
+        <div
+          className="filter-overlay"
+          onClick={() => setShowFilter(false)}
+        />
+      )}
 
-        <div className="filter-group">
-          <label>Max Price</label>
-          <input
-            type="number"
-            value={filters.maxPrice}
-            onChange={(e) =>
-              setFilters({ ...filters, maxPrice: e.target.value })
-            }
-          />
-        </div>
-
-        <div className="filter-group">
-          <label>Color</label>
-          <select
-            value={filters.color}
-            onChange={(e) => setFilters({ ...filters, color: e.target.value })}
-          >
-            <option value="">All</option>
-            {colors.map((c) => (
-              <option key={c}>{c}</option>
-            ))}
-          </select>
-        </div>
-
-        <div className="filter-group">
-          <label>Size</label>
-          <select
-            value={filters.size}
-            onChange={(e) => setFilters({ ...filters, size: e.target.value })}
-          >
-            <option value="">All</option>
-            {sizes.map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
-        </div>
-
-        <button
-          className="clear-filter"
-          onClick={() =>
-            setFilters({
-              minPrice: "",
-              maxPrice: "",
-              color: "",
-              size: "",
-            })
-          }
+      <div className="page-layout">
+        {/* FILTER PANEL */}
+        <div
+          className={`filter-panel ${showFilter ? "filter-panel-open" : "filter-panel-closed"}`}
         >
-          Clear Filters
-        </button>
-      </div>
+          <div className="filter-header">
+            <h4 className="filter-title">
+              <FaFilter style={{ marginRight: "8px", fontSize: "18px" }} />
+              Filters
+            </h4>
+            <button
+              className="close-filter-btn"
+              onClick={() => setShowFilter(false)}
+            >
+              <FaTimes />
+            </button>
+          </div>
 
-      {/* PRODUCT GRID */}
-      <div className="product-grid">
-        {filteredProducts.map((product) => (
-          <div
-            key={product._id}
-            className="product-card"
-            onClick={() => navigate(`/productdetail/${product._id}`)}
-          >
-            <div className="product-image-wrapper">
-              <img
-                src={`http://localhost:5000/${product.images?.[0]}`}
-                alt={product.name}
-              />
+          <div className="filter-content">
+            {/* Price Range */}
+            <div className="filter-section">
+              <label className="filter-label">Price Range</label>
+              <div className="price-inputs">
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={filters.minPrice}
+                  onChange={(e) =>
+                    setFilters({ ...filters, minPrice: e.target.value })
+                  }
+                  className="price-input"
+                />
+                <span className="price-separator">-</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={filters.maxPrice}
+                  onChange={(e) =>
+                    setFilters({ ...filters, maxPrice: e.target.value })
+                  }
+                  className="price-input"
+                />
+              </div>
+            </div>
 
-              {/* LIKE BUTTON */}
-              {isLiked(product._id) ? (
-                <FaHeart
-                  className={`icon like-icon liked ${
-                    !isLoggedIn ? "disabled" : ""
-                  }`}
-                  onClick={(e) => handleLike(e, product)}
-                />
-              ) : (
-                <FaRegHeart
-                  className={`icon like-icon ${!isLoggedIn ? "disabled" : ""}`}
-                  onClick={(e) => handleLike(e, product)}
-                />
+            {/* Color Filter */}
+            {colors.length > 0 && (
+              <div className="filter-section">
+                <label className="filter-label">Color</label>
+                <div className="color-grid">
+                  <div
+                    onClick={() => setFilters({ ...filters, color: "" })}
+                    className={`filter-chip color-option ${filters.color === "" ? "active" : ""}`}
+                  >
+                    All
+                  </div>
+                  {colors.map((c) => (
+                    <div
+                      key={c}
+                      onClick={() => setFilters({ ...filters, color: c })}
+                      className={`filter-chip color-option ${filters.color === c ? "active" : ""}`}
+                    >
+                      {c}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Size Filter */}
+            {sizes.length > 0 && (
+              <div className="filter-section">
+                <label className="filter-label">Size</label>
+                <div className="size-grid">
+                  <div
+                    onClick={() => setFilters({ ...filters, size: "" })}
+                    className={`filter-chip size-option ${filters.size === "" ? "active" : ""}`}
+                  >
+                    All
+                  </div>
+                  {sizes.map((s) => (
+                    <div
+                      key={s}
+                      onClick={() => setFilters({ ...filters, size: s })}
+                      className={`filter-chip size-option ${filters.size === s ? "active" : ""}`}
+                    >
+                      {s}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {activeFiltersCount > 0 && (
+              <button
+                className="clear-btn"
+                onClick={() => {
+                  setFilters({
+                    minPrice: "",
+                    maxPrice: "",
+                    color: "",
+                    size: "",
+                  });
+                  setShowFilter(false);
+                }}
+              >
+                Clear All Filters
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* PRODUCT GRID */}
+        <div className="product-section">
+          <div className="product-header">
+            <h2 className="product-count">
+              {filteredProducts.length} Product{filteredProducts.length !== 1 ? "s" : ""}
+            </h2>
+          </div>
+
+          {filteredProducts.length === 0 ? (
+            <div className="empty-state">
+              <div className="empty-icon">🔍</div>
+              <h3 className="empty-title">No products found</h3>
+              <p className="empty-text">Try adjusting your filters to see more results</p>
+              {activeFiltersCount > 0 && (
+                <button
+                  className="empty-button"
+                  onClick={() =>
+                    setFilters({
+                      minPrice: "",
+                      maxPrice: "",
+                      color: "",
+                      size: "",
+                    })
+                  }
+                >
+                  Clear Filters
+                </button>
               )}
             </div>
+          ) : (
+            <div className="product-grid">
+              {filteredProducts.map((product) => {
+                const outOfStock = isOutOfStock(product);
+                const lowStock = isLowStock(product);
+                const stockCount = getProductStock(product);
 
-            <div className="product-info">
-              <div className="product-title">
-                <h3>{product.name}</h3>
-                {/* <FaShoppingCart
-                  className="icon cart-icon"
-                  onClick={(e) => handleAddToCart(e, product)}
-                /> */}
-              </div>
-              <p className="product-brand-price">
-                {product.brandId?.name} – ₹
-                {product.variants?.[0]?.sizes?.[0]?.price}
-              </p>
+                return (
+                  <div
+                    key={product._id}
+                    className={`product-card ${outOfStock ? "out-of-stock" : ""}`}
+                    onClick={() => !outOfStock && navigate(`/productdetail/${product._id}`)}
+                  >
+                    <div className="image-container">
+                      <img
+                        src={`http://localhost:5000/${product.images?.[0]}`}
+                        alt={product.name}
+                        className={`product-img ${outOfStock ? "grayscale" : ""}`}
+                        onError={(e) => (e.target.style.display = "none")}
+                      />
+
+                      <div className="image-overlay" />
+
+                      {/* Out of Stock Overlay */}
+                      {outOfStock && (
+                        <div className="out-of-stock-overlay">
+                          <span className="out-of-stock-text">OUT OF STOCK</span>
+                        </div>
+                      )}
+
+                      {/* Low Stock Badge */}
+                      {!outOfStock && lowStock && (
+                        <div className="low-stock-badge">
+                          Only {stockCount} left!
+                        </div>
+                      )}
+
+                      {/* Like Button */}
+                      <button
+                        onClick={(e) => handleLike(e, product)}
+                        disabled={!isLoggedIn}
+                        className={`like-btn ${isLiked(product._id) ? "liked" : ""} ${!isLoggedIn ? "disabled" : ""}`}
+                      >
+                        {isLiked(product._id) ? (
+                          <FaHeart className="heart-icon" />
+                        ) : (
+                          <FaRegHeart className="heart-icon" />
+                        )}
+                      </button>
+
+                      {/* Brand Badge */}
+                      {product.brandId?.name && (
+                        <div className="brand-badge">
+                          {product.brandId.name}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="product-info">
+                      <h3 className="product-name">{product.name}</h3>
+                      <div className="product-footer">
+                        <div>
+                          <p className="price">
+                            ₹{product.variants?.[0]?.sizes?.[0]?.price?.toLocaleString()}
+                          </p>
+                          {product.variants?.[0]?.color && (
+                            <p className="color-info">
+                              {product.variants[0].color}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Stock Status */}
+                      {outOfStock ? (
+                        <div className="stock-status out">
+                          Out of Stock
+                        </div>
+                      ) : lowStock ? (
+                        <div className="stock-status low">
+                          Hurry! Only {stockCount} piece{stockCount !== 1 ? 's' : ''} left
+                        </div>
+                      ) : (
+                        <div className="stock-status in">
+                          In Stock
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        ))}
+          )}
+        </div>
       </div>
     </div>
   );

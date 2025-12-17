@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaExclamationTriangle } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import API from "../../api/axios";
 import { useLocation } from "react-router-dom";
@@ -17,6 +17,7 @@ export default function CartScreen() {
   const [appliedCoupons, setAppliedCoupons] = useState([]);
   const [coupons, setCoupons] = useState([]);
   const [showCouponModal, setShowCouponModal] = useState(false);
+  const [stockWarnings, setStockWarnings] = useState({});
 
   useEffect(() => {
     if (!userId) return;
@@ -25,6 +26,7 @@ export default function CartScreen() {
       try {
         const res = await API.get(`/cart/get/${userId}`);
         setCart(res.data?.items || []);
+        checkStockAvailability(res.data?.items || []);
       } catch (err) {
         console.error("Failed to load cart", err);
       }
@@ -40,6 +42,48 @@ export default function CartScreen() {
       .catch((err) => console.error(err));
   }, []);
 
+  // Check stock availability for all cart items
+  const checkStockAvailability = async (cartItems) => {
+    const warnings = {};
+    
+    for (const item of cartItems) {
+      try {
+        const res = await API.get(
+          `/cart/${item.productId._id}/sizes/${encodeURIComponent(
+            item.variant.color
+          )}`
+        );
+        
+        const currentSize = res.data.find(s => s.size === item.variant.size);
+        const availableStock = currentSize?.stock || 0;
+        
+        if (availableStock === 0) {
+          warnings[item._id] = {
+            type: 'out-of-stock',
+            message: 'Out of stock',
+            availableStock: 0
+          };
+        } else if (item.quantity > availableStock) {
+          warnings[item._id] = {
+            type: 'exceeds-stock',
+            message: `Only ${availableStock} available`,
+            availableStock
+          };
+        } else if (availableStock < 10) {
+          warnings[item._id] = {
+            type: 'low-stock',
+            message: `Only ${availableStock} left in stock`,
+            availableStock
+          };
+        }
+      } catch (err) {
+        console.error("Stock check failed", err);
+      }
+    }
+    
+    setStockWarnings(warnings);
+  };
+
   const fetchSizes = async (item) => {
     const res = await API.get(
       `/cart/${item.productId._id}/sizes/${encodeURIComponent(
@@ -52,41 +96,35 @@ export default function CartScreen() {
       [item._id]: res.data,
     }));
   };
+
   const handleSizeChange = async (itemId, newSize) => {
     try {
-      // 1️⃣ Update size
       await API.put("/cart/update-variant", {
         userId,
         itemId,
         size: newSize,
       });
 
-      // 2️⃣ REFRESH cart
       const refreshed = await API.get(`/cart/get/${userId}`);
-
-      // 3️⃣ Update UI
       setCart(refreshed.data.items);
-
+      checkStockAvailability(refreshed.data.items);
       window.dispatchEvent(new Event("cartUpdated"));
     } catch (err) {
       console.error("Size update failed", err);
     }
   };
 
-  const updateVariant = async (itemId, size) => {
-    const res = await API.put("/cart/update-variant", {
-      userId,
-      itemId,
-      size,
-    });
-
-    setCart(res.data.items);
-  };
-
   const handleRemove = async (itemId) => {
     try {
       const res = await API.delete(`/cart/remove/${userId}/${itemId}`);
       setCart(res.data.items);
+      checkStockAvailability(res.data.items);
+      
+      // Remove warning for this item
+      const newWarnings = { ...stockWarnings };
+      delete newWarnings[itemId];
+      setStockWarnings(newWarnings);
+      
       window.dispatchEvent(new Event("cartUpdated"));
     } catch (err) {
       console.error("Failed to remove item", err);
@@ -94,61 +132,91 @@ export default function CartScreen() {
   };
 
   const handleQuantityChange = async (itemId, quantity) => {
-    if (quantity < 1) return;
+  let quantityNum = parseInt(quantity);
 
-    try {
-      // 1️⃣ Update quantity
-      await API.put("/cart/update", {
-        userId,
-        itemId,
-        quantity,
-      });
+  if (isNaN(quantityNum) || quantityNum < 1) return;
 
-      // 2️⃣ REFRESH cart (this fixes image issue)
-      const refreshed = await API.get(`/cart/get/${userId}`);
+  const item = cart.find(i => i._id === itemId);
+  const warning = stockWarnings[itemId];
 
-      // 3️⃣ Update state with populated data
-      setCart(refreshed.data.items);
+  // 🔒 STRICT STOCK LIMIT
+  if (warning?.availableStock !== undefined) {
+    if (quantityNum > warning.availableStock) {
+      quantityNum = warning.availableStock;
 
-      // 4️⃣ Update navbar count
-      window.dispatchEvent(new Event("cartUpdated"));
-    } catch (err) {
-      console.error("Quantity update failed", err);
+      alert(`You can add only ${warning.availableStock} items. Stock limit reached.`);
     }
-  };
+
+    if (quantityNum === 0) {
+      await handleRemove(itemId);
+      return;
+    }
+  }
+
+  try {
+    await API.put("/cart/update", {
+      userId,
+      itemId,
+      quantity: quantityNum,
+    });
+
+    const refreshed = await API.get(`/cart/get/${userId}`);
+    setCart(refreshed.data.items);
+    checkStockAvailability(refreshed.data.items);
+    window.dispatchEvent(new Event("cartUpdated"));
+  } catch (err) {
+    console.error("Quantity update failed", err);
+  }
+};
+
+  // Auto-remove out of stock items
+  useEffect(() => {
+    const removeOutOfStockItems = async () => {
+      const outOfStockItems = Object.entries(stockWarnings)
+        .filter(([_, warning]) => warning.type === 'out-of-stock')
+        .map(([itemId]) => itemId);
+      
+      if (outOfStockItems.length > 0) {
+        for (const itemId of outOfStockItems) {
+          await handleRemove(itemId);
+        }
+      }
+    };
+    
+    removeOutOfStockItems();
+  }, [stockWarnings]);
 
   /* ======================
      TOTAL CALCULATIONS
   ====================== */
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
- const totalMRP = cart.reduce((acc, item) => {
-  const discountedPrice = item.price;
-  const discountPercent = item.productId?.discount || 0;
+  const totalMRP = cart.reduce((acc, item) => {
+    const discountedPrice = item.price;
+    const discountPercent = item.productId?.discount || 0;
 
-  const mrp =
-    discountPercent > 0
-      ? Math.round(discountedPrice / (1 - discountPercent / 100))
-      : discountedPrice;
+    const mrp =
+      discountPercent > 0
+        ? Math.round(discountedPrice / (1 - discountPercent / 100))
+        : discountedPrice;
 
-  return acc + mrp * item.quantity;
-}, 0);
+    return acc + mrp * item.quantity;
+  }, 0);
 
-const totalDiscount = cart.reduce((acc, item) => {
-  const discountedPrice = item.price;
-  const discountPercent = item.productId?.discount || 0;
+  const totalDiscount = cart.reduce((acc, item) => {
+    const discountedPrice = item.price;
+    const discountPercent = item.productId?.discount || 0;
 
-  if (discountPercent === 0) return acc;
+    if (discountPercent === 0) return acc;
 
-  const basePrice = Math.round(
-    discountedPrice / (1 - discountPercent / 100)
-  );
+    const basePrice = Math.round(
+      discountedPrice / (1 - discountPercent / 100)
+    );
 
-  const discountOnMrp = basePrice - discountedPrice;
+    const discountOnMrp = basePrice - discountedPrice;
 
-  return acc + discountOnMrp * item.quantity;
-}, 0);
-
+    return acc + discountOnMrp * item.quantity;
+  }, 0);
 
   const totalAmount = totalMRP - totalDiscount;
 
@@ -221,31 +289,31 @@ const totalDiscount = cart.reduce((acc, item) => {
               : discountedPrice;
 
           const discountOnMrp = basePrice - discountedPrice;
-
-          console.log(
-            "Base Price (MRP):",
-            basePrice,
-            "Discounted Price:",
-            discountedPrice,
-            "Discount on MRP:",
-            discountOnMrp
-          );
-
-          const variant = item.productId.variants?.find(
-            (v) => v.color === item.variant.color
-          );
+          const warning = stockWarnings[item._id];
 
           return (
-            <div className="cart-item" key={item._id}>
+            <div 
+              className={`cart-item ${warning?.type === 'out-of-stock' ? 'out-of-stock' : ''}`} 
+              key={item._id}
+            >
               <div className="cart-item-img">
                 <img
                   src={`http://localhost:5000/${item.productId.images?.[0]}`}
                   alt={item.productId.name}
+                  style={warning?.type === 'out-of-stock' ? { filter: 'grayscale(100%)', opacity: 0.5 } : {}}
                 />
               </div>
 
               <div className="cart-item-details">
                 <h3 className="cart-item-name">{item.productId.name}</h3>
+
+                {/* Stock Warning */}
+                {warning && (
+                  <div className={`stock-warning ${warning.type}`}>
+                    <FaExclamationTriangle />
+                    <span>{warning.message}</span>
+                  </div>
+                )}
 
                 {item.productId.discount > 0 && (
                   <span className="cart-discount">
@@ -264,6 +332,7 @@ const totalDiscount = cart.reduce((acc, item) => {
                     value={item.variant.size}
                     onClick={() => fetchSizes(item)}
                     onChange={(e) => handleSizeChange(item._id, e.target.value)}
+                    disabled={warning?.type === 'out-of-stock'}
                   >
                     {(sizeOptions[item._id] || []).map((s) => (
                       <option
@@ -271,7 +340,7 @@ const totalDiscount = cart.reduce((acc, item) => {
                         value={s.size}
                         disabled={s.stock === 0}
                       >
-                        {s.size} {s.stock === 0 ? "(Out of stock)" : ""}
+                        {s.size} {s.stock === 0 ? "(Out of stock)" : s.stock < 10 ? `(${s.stock} left)` : ""}
                       </option>
                     ))}
                   </select>
@@ -299,11 +368,16 @@ const totalDiscount = cart.reduce((acc, item) => {
                   <input
                     type="number"
                     min="1"
+                    max={warning?.availableStock || 999}
                     value={item.quantity}
                     onChange={(e) =>
                       handleQuantityChange(item._id, e.target.value)
                     }
+                    disabled={warning?.type === 'out-of-stock'}
                   />
+                  {warning?.availableStock && (
+                    <span className="max-qty-hint">Max: {warning.availableStock}</span>
+                  )}
                 </div>
               </div>
 

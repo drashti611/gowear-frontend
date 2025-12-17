@@ -329,6 +329,88 @@
 .applied-coupon:hover {
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}/* ==================== STOCK WARNING STYLES ==================== */
+
+.stock-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.stock-warning svg {
+  font-size: 16px;
+}
+
+.stock-warning.out-of-stock {
+  background-color: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.stock-warning.exceeds-stock {
+  background-color: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.stock-warning.low-stock {
+  background-color: #fff4e6;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+/* Out of Stock Cart Item */
+.cart-item.out-of-stock {
+  opacity: 0.6;
+  position: relative;
+}
+
+.cart-item.out-of-stock::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+}
+
+/* Max Quantity Hint */
+.max-qty-hint {
+  font-size: 11px;
+  color: #ef4444;
+  margin-left: 8px;
+  font-weight: 600;
+}
+
+/* Disabled Inputs for Out of Stock */
+.cart-item.out-of-stock select,
+.cart-item.out-of-stock input[type="number"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Size Select with Stock Info */
+.cart-size select option[disabled] {
+  color: #9ca3af;
+  font-style: italic;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
 }
 
 .applied-coupon button {
