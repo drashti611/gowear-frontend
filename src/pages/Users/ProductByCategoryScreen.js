@@ -6,6 +6,7 @@ import "../../css/Customercss/ProductByCategoryScreen.css";
 
 export default function ProductByCategoryScreen() {
   const [showFilter, setShowFilter] = useState(false);
+  const userId = localStorage.getItem("userId");
 
   const { categoryId, subCategoryId } = useParams();
   const navigate = useNavigate();
@@ -21,11 +22,57 @@ export default function ProductByCategoryScreen() {
     size: "",
   });
 
-  // ================= LOAD LIKES =================
+  // ================= LOAD WISHLIST FROM API =================
   useEffect(() => {
-    const likes = JSON.parse(localStorage.getItem("likedProducts")) || [];
-    setLikedProducts(likes);
-  }, []);
+    if (!userId) return;
+
+    const fetchWishlist = async () => {
+      try {
+        const res = await API.get(`/wishlist/${userId}`);
+        setLikedProducts(res.data || []);
+      } catch (err) {
+        console.error(err);
+      }
+    };
+
+    fetchWishlist();
+  }, [userId]);
+
+  const handleLike = async (e, product) => {
+    e.stopPropagation();
+
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    const alreadyLiked = likedProducts.some((p) => p._id === product._id);
+
+    try {
+      if (alreadyLiked) {
+        // REMOVE
+        await API.post("/wishlist/remove", {
+          userId,
+          productId: product._id,
+        });
+
+        setLikedProducts((prev) => prev.filter((p) => p._id !== product._id));
+      } else {
+        // ADD
+        await API.post("/wishlist/add", {
+          userId,
+          productId: product._id,
+        });
+
+        setLikedProducts((prev) => [...prev, product]);
+      }
+      // 🔥 THIS LINE IS REQUIRED
+      window.dispatchEvent(new Event("wishlistUpdated"));
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // ================= FETCH PRODUCTS =================
   useEffect(() => {
@@ -34,15 +81,11 @@ export default function ProductByCategoryScreen() {
     const fetchProducts = async () => {
       try {
         let res;
-        if (subCategoryId) {
-          res = await API.get(
-            `/product/getProductsBySubCategory/${subCategoryId}`
-          );
-        } else {
-          res = await API.get(
-            `/product/getProductsByCategory/${categoryId}`
-          );
-        }
+
+        res = await API.get(
+          `/product/getProductsByCategoryAndSubCategory/${categoryId}/${subCategoryId}`
+        );
+        window.dispatchEvent(new Event("wishlistUpdated"));
         setProducts(res.data || []);
       } catch (err) {
         console.error(err);
@@ -65,9 +108,7 @@ export default function ProductByCategoryScreen() {
   const sizes = [
     ...new Set(
       products
-        .flatMap((p) =>
-          p.variants?.flatMap((v) => v.sizes?.map((s) => s.size))
-        )
+        .flatMap((p) => p.variants?.flatMap((v) => v.sizes?.map((s) => s.size)))
         .filter(Boolean)
     ),
   ];
@@ -106,45 +147,22 @@ export default function ProductByCategoryScreen() {
   });
 
   // ================= ACTIONS =================
-  const handleAddToCart = (e, product) => {
-    e.stopPropagation();
-    const token = localStorage.getItem("token");
+  // const handleAddToCart = (e, product) => {
+  //   e.stopPropagation();
+  //   const token = localStorage.getItem("token");
 
-    if (!token) {
-      navigate("/login");
-      return;
-    }
+  //   if (!token) {
+  //     navigate("/login");
+  //     return;
+  //   }
 
-    let cart = JSON.parse(localStorage.getItem("cart")) || [];
-    if (!cart.some((item) => item._id === product._id)) {
-      cart.push({ ...product, quantity: 1 });
-      localStorage.setItem("cart", JSON.stringify(cart));
-      window.dispatchEvent(new Event("storage"));
-    }
-  };
-
-  const handleLike = (e, product) => {
-    e.stopPropagation();
-    const token = localStorage.getItem("token");
-
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-
-    let liked = JSON.parse(localStorage.getItem("likedProducts")) || [];
-    const exists = liked.some((p) => p._id === product._id);
-
-    liked = exists
-      ? liked.filter((p) => p._id !== product._id)
-      : [...liked, product];
-
-    localStorage.setItem("likedProducts", JSON.stringify(liked));
-    setLikedProducts(liked);
-
-    // Notify other components if needed
-    window.dispatchEvent(new Event("storage"));
-  };
+  //   let cart = JSON.parse(localStorage.getItem("cart")) || [];
+  //   if (!cart.some((item) => item._id === product._id)) {
+  //     cart.push({ ...product, quantity: 1 });
+  //     localStorage.setItem("cart", JSON.stringify(cart));
+  //     window.dispatchEvent(new Event("storage"));
+  //   }
+  // };
 
   const isLiked = (id) => likedProducts.some((p) => p._id === id);
 
@@ -190,9 +208,7 @@ export default function ProductByCategoryScreen() {
           <label>Color</label>
           <select
             value={filters.color}
-            onChange={(e) =>
-              setFilters({ ...filters, color: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, color: e.target.value })}
           >
             <option value="">All</option>
             {colors.map((c) => (
@@ -205,9 +221,7 @@ export default function ProductByCategoryScreen() {
           <label>Size</label>
           <select
             value={filters.size}
-            onChange={(e) =>
-              setFilters({ ...filters, size: e.target.value })
-            }
+            onChange={(e) => setFilters({ ...filters, size: e.target.value })}
           >
             <option value="">All</option>
             {sizes.map((s) => (

@@ -428,3 +428,18 @@ body {
     text-align: center;
   }
 }
+.cancel-btn {
+  margin-top: 12px;
+  padding: 8px 14px;
+  background-color: #dc3545;
+  border: none;
+  color: white;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.cancel-btn:hover {
+  background-color: #b02a37;
+}
+

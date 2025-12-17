@@ -4,7 +4,6 @@ import API from "../api/axios";
 import "../css/Navbar.css";
 import jwtDecode from "jwt-decode";
 
-
 import {
   FaUser,
   FaHeart,
@@ -17,36 +16,37 @@ import {
   FaBox,
   FaCog,
   FaSignOutAlt,
-  FaShippingFast
+  FaShippingFast,
 } from "react-icons/fa";
 
 export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
-const token =
-  sessionStorage.getItem("token") || localStorage.getItem("token");
+  const token =
+    sessionStorage.getItem("token") || localStorage.getItem("token");
 
-useEffect(() => {
-  if (!token) {
-    setRole(null);
-    return;
-  }
-
-  try {
-    const decoded = jwtDecode(token);
-    // ✅ Update ye
-    if (decoded.role === "admin") {
-      setRole(null); // admin ke liye user role null ho jaaye
-    } else {
-      setRole(decoded.role); // normal user ke liye role set ho jaaye
+  useEffect(() => {
+    if (!token) {
+      setRole(null);
+      return;
     }
-  } catch (err) {
-    localStorage.clear();
-    sessionStorage.clear();
-    navigate("/login");
-  }
-}, [token, navigate]);
 
+    try {
+      const decoded = jwtDecode(token);
+      // ✅ Update ye
+      if (decoded.role === "admin") {
+        setRole(null); // admin ke liye user role null ho jaaye
+      } else {
+        setRole(decoded.role); // normal user ke liye role set ho jaaye
+      }
+    } catch (err) {
+      localStorage.clear();
+      sessionStorage.clear();
+      navigate("/login");
+    }
+  }, [token, navigate]);
+
+  const userId = localStorage.getItem("userId");
 
   const [city, setCity] = useState(null);
   const [categories, setCategories] = useState([]);
@@ -55,7 +55,7 @@ useEffect(() => {
   const [likeCount, setLikeCount] = useState(0);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-const [role, setRole] = useState(null);
+  const [role, setRole] = useState(null);
 
   const [activeCategory, setActiveCategory] = useState(null);
   const [hoveredSubcategory, setHoveredSubcategory] = useState(null);
@@ -117,26 +117,44 @@ const [role, setRole] = useState(null);
   }, []);
 
   useEffect(() => {
-    const updateCounts = () => {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]");
-      const likes = JSON.parse(localStorage.getItem("likedProducts") || "[]");
-      setCartCount(cart.length);
-      setLikeCount(likes.length);
+    const updateCounts = async () => {
+      if (userId) {
+        try {
+          // CART COUNT
+          const cartRes = await API.get(`/cart/count/${userId}`);
+          setCartCount(cartRes.data.count);
+
+          // WISHLIST COUNT
+          const wishRes = await API.get(`/wishlist/count/${userId}`);
+          setLikeCount(wishRes.data.count);
+        } catch (err) {
+          console.error(err);
+          setCartCount(0);
+          setLikeCount(0);
+        }
+      } else {
+        setCartCount(0);
+        setLikeCount(0);
+      }
     };
 
     updateCounts();
-    window.addEventListener("storage", updateCounts);
 
-    return () => window.removeEventListener("storage", updateCounts);
-  }, []);
+    // Optional: listen to custom events
+    window.addEventListener("cartUpdated", updateCounts);
+    window.addEventListener("wishlistUpdated", updateCounts);
+
+    return () => {
+      window.removeEventListener("cartUpdated", updateCounts);
+      window.removeEventListener("wishlistUpdated", updateCounts);
+    };
+  }, [userId]);
 
   if (location.pathname.startsWith("/admin")) return null;
 
   const logout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("role");
-    localStorage.removeItem("cart");
-    localStorage.removeItem("likedProducts");
     sessionStorage.removeItem("token");
     sessionStorage.removeItem("role");
     setShowProfileMenu(false);
@@ -149,10 +167,12 @@ const [role, setRole] = useState(null);
     if (subcategoryData[categoryId]) return;
 
     try {
-      const res = await API.get(`subCategory/viewSubCategoryByCategoryID/${categoryId}`);
-      setSubcategoryData(prev => ({
+      const res = await API.get(
+        `subCategory/viewSubCategoryByCategoryID/${categoryId}`
+      );
+      setSubcategoryData((prev) => ({
         ...prev,
-        [categoryId]: res.data || []
+        [categoryId]: res.data || [],
       }));
     } catch (err) {
       console.error("Failed to fetch subcategories:", err);
@@ -164,16 +184,18 @@ const [role, setRole] = useState(null);
     if (productTypeData[key]) return;
 
     try {
-      const res = await API.get(`product_type/ProductTypebyCategory/${categoryId}`);
+      const res = await API.get(
+        `product_type/ProductTypebyCategory/${categoryId}`
+      );
 
-      const filtered = res.data.filter(pt => {
+      const filtered = res.data.filter((pt) => {
         const subId = pt.subCategoryId?._id || pt.subCategoryId;
         return subId === subcategoryId;
       });
 
-      setProductTypeData(prev => ({
+      setProductTypeData((prev) => ({
         ...prev,
-        [key]: filtered
+        [key]: filtered,
       }));
     } catch (err) {
       console.error("Failed to fetch product types:", err);
@@ -237,7 +259,9 @@ const [role, setRole] = useState(null);
         <div className="announcement-content">
           <div className="announcement-item">
             <FaMapMarkerAlt className="announcement-icon" />
-            <span>Deliver to: <strong>{city || "India"}</strong></span>
+            <span>
+              Deliver to: <strong>{city || "India"}</strong>
+            </span>
           </div>
           <div className="announcement-promo">
             <FaShippingFast className="promo-icon" />
@@ -281,7 +305,9 @@ const [role, setRole] = useState(null);
                 onMouseLeave={handleCategoryLeave}
               >
                 <button
-                  className={`category-btn ${activeCategory === cat._id ? 'active' : ''}`}
+                  className={`category-btn ${
+                    activeCategory === cat._id ? "active" : ""
+                  }`}
                   onClick={() => navigate(`/category/${cat._id}`)}
                 >
                   {cat.name}
@@ -311,7 +337,9 @@ const [role, setRole] = useState(null);
             <div className="action-btn" onClick={handleWishlistClick}>
               <div className="action-icon-box">
                 <FaHeart className="action-icon" />
-                {token && likeCount > 0 && <span className="action-badge">{likeCount}</span>}
+                {token && likeCount > 0 && (
+                  <span className="action-badge">{likeCount}</span>
+                )}
               </div>
               <span className="action-text">Wishlist</span>
             </div>
@@ -320,14 +348,19 @@ const [role, setRole] = useState(null);
             <div className="action-btn" onClick={handleCartClick}>
               <div className="action-icon-box">
                 <FaShoppingBag className="action-icon" />
-                {token && cartCount > 0 && <span className="action-badge">{cartCount}</span>}
+                {token && cartCount > 0 && (
+                  <span className="action-badge">{cartCount}</span>
+                )}
               </div>
               <span className="action-text">Bag</span>
             </div>
 
             {/* Profile / Login */}
             {!token ? (
-              <button className="login-button" onClick={() => navigate("/login")}>
+              <button
+                className="login-button"
+                onClick={() => navigate("/login")}
+              >
                 <FaUser size={14} />
                 <span>Login</span>
               </button>
@@ -394,7 +427,10 @@ const [role, setRole] = useState(null);
 
                       <div className="profile-divider"></div>
 
-                      <button className="profile-item logout-item" onClick={logout}>
+                      <button
+                        className="profile-item logout-item"
+                        onClick={logout}
+                      >
                         <FaSignOutAlt className="profile-icon" />
                         <span>Logout</span>
                       </button>
@@ -411,7 +447,9 @@ const [role, setRole] = useState(null);
       {activeCategory && !isMobile && (
         <div
           className="mega-menu"
-          onMouseEnter={() => hoverTimeoutRef.current && clearTimeout(hoverTimeoutRef.current)}
+          onMouseEnter={() =>
+            hoverTimeoutRef.current && clearTimeout(hoverTimeoutRef.current)
+          }
           onMouseLeave={handleCategoryLeave}
         >
           <div className="mega-container">
@@ -424,9 +462,13 @@ const [role, setRole] = useState(null);
                     subcategoryData[activeCategory].map((sub) => (
                       <div
                         key={sub._id}
-                        className={`mega-link ${hoveredSubcategory === sub._id ? 'hovered' : ''}`}
+                        className={`mega-link ${
+                          hoveredSubcategory === sub._id ? "hovered" : ""
+                        }`}
                         onMouseEnter={() => handleSubcategoryHover(sub._id)}
-                        onClick={() => navigate(`/products/${activeCategory}/${sub._id}`)}
+                        onClick={() =>
+                          navigate(`/products/${activeCategory}/${sub._id}`)
+                        }
                       >
                         <span>{sub.name}</span>
                         <FaChevronRight className="mega-icon" />
@@ -446,9 +488,14 @@ const [role, setRole] = useState(null);
               <div className="mega-section">
                 <h4 className="mega-heading">Popular Products</h4>
                 <div className="mega-list">
-                  {productTypeData[`${activeCategory}-${hoveredSubcategory}`] ? (
-                    productTypeData[`${activeCategory}-${hoveredSubcategory}`].length > 0 ? (
-                      productTypeData[`${activeCategory}-${hoveredSubcategory}`].map((pt) => (
+                  {productTypeData[
+                    `${activeCategory}-${hoveredSubcategory}`
+                  ] ? (
+                    productTypeData[`${activeCategory}-${hoveredSubcategory}`]
+                      .length > 0 ? (
+                      productTypeData[
+                        `${activeCategory}-${hoveredSubcategory}`
+                      ].map((pt) => (
                         <div
                           key={pt._id}
                           className="mega-link"
@@ -468,10 +515,13 @@ const [role, setRole] = useState(null);
             )}
 
             {/* Featured Banner */}
-            {categories.find(c => c._id === activeCategory)?.heroImageUrl && (
+            {categories.find((c) => c._id === activeCategory)?.heroImageUrl && (
               <div className="mega-featured">
                 <img
-                  src={categories.find(c => c._id === activeCategory).heroImageUrl}
+                  src={
+                    categories.find((c) => c._id === activeCategory)
+                      .heroImageUrl
+                  }
                   alt="Featured"
                   className="featured-image"
                 />
@@ -494,7 +544,10 @@ const [role, setRole] = useState(null);
       {/* Mobile Menu */}
       {mobileMenuOpen && (
         <>
-          <div className="mobile-overlay" onClick={() => setMobileMenuOpen(false)}></div>
+          <div
+            className="mobile-overlay"
+            onClick={() => setMobileMenuOpen(false)}
+          ></div>
           <div className="mobile-menu">
             <div className="mobile-header">
               <h3>Menu</h3>

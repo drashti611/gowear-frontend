@@ -25,7 +25,9 @@ export default function SubCategoryScreen() {
   useEffect(() => {
     const fetchSubCategories = async () => {
       try {
-        const res = await API.get(`/subcategory/viewSubCategoryByCategoryID/${id}`);
+        const res = await API.get(
+          `/subcategory/viewSubCategoryByCategoryID/${id}`
+        );
         setSubCategories(res.data || []);
       } catch (err) {
         console.error("Failed to fetch subcategories:", err);
@@ -86,16 +88,20 @@ export default function SubCategoryScreen() {
               <FaArrowLeft />
               <span>Back</span>
             </button>
-            
+
             <div className="breadcrumb">
-              <span onClick={() => navigate("/")} className="breadcrumb-link">Home</span>
+              <span onClick={() => navigate("/")} className="breadcrumb-link">
+                Home
+              </span>
               <FaChevronRight className="breadcrumb-icon" />
               <span className="breadcrumb-current">{categoryName}</span>
             </div>
 
             <div className="header-title">
               <h1>{categoryName}</h1>
-              <p className="subtitle">{subCategories.length} Collections Available</p>
+              <p className="subtitle">
+                {subCategories.length} Collections Available
+              </p>
             </div>
           </div>
         </div>
@@ -115,37 +121,53 @@ export default function SubCategoryScreen() {
             </div>
           ) : (
             <div className="subcategory-grid">
-              {subCategories.map((sub) => (
-                <div
-                  key={sub._id}
-                  className="subcategory-card"
-                  onClick={() => navigate(`/products/${id}/${sub._id}`)}
-                >
-                  <div className="card-image-wrapper">
-                    <img
-                      src={`http://localhost:5000/${sub.images?.[0]}`}
-                      alt={sub.name}
-                      className="card-image"
-                      onError={(e) => {
-                        e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect fill='%23f5f5f5'/%3E%3Ctext x='50%25' y='50%25' font-size='18' fill='%23999' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
-                      }}
-                    />
-                    <div className="card-overlay">
-                      <div className="overlay-content">
-                        <FaChevronRight className="arrow-icon" />
+              {subCategories.map((sub) => {
+                // ✅ handle string OR object images
+                const imagePath =
+                  Array.isArray(sub.images) && sub.images.length > 0
+                    ? typeof sub.images[0] === "string"
+                      ? sub.images[0]
+                      : sub.images[0].path || sub.images[0].url
+                    : null;
+
+                return (
+                  <div
+                    key={sub._id}
+                    className="subcategory-card"
+                    onClick={() => navigate(`/products/${id}/${sub._id}`)}
+                  >
+                    <div className="card-image-wrapper">
+                      {imagePath ? (
+                        <img
+                          src={`http://localhost:5000/${imagePath}`}
+                          alt={sub.name}
+                          className="card-image"
+                          onError={(e) => {
+                            e.target.src =
+                              "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400'%3E%3Crect fill='%23f5f5f5'/%3E%3Ctext x='50%25' y='50%25' font-size='18' fill='%23999' text-anchor='middle' dy='.3em'%3ENo Image%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
+                      ) : (
+                        <div className="no-image">No Image</div>
+                      )}
+
+                      <div className="card-overlay">
+                        <div className="overlay-content">
+                          <FaChevronRight className="arrow-icon" />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="card-content">
+                      <h3 className="card-title">{sub.name}</h3>
+                      <div className="card-action">
+                        <span>Explore Collection</span>
+                        <FaChevronRight className="action-arrow" />
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="card-content">
-                    <h3 className="card-title">{sub.name}</h3>
-                    <div className="card-action">
-                      <span>Explore Collection</span>
-                      <FaChevronRight className="action-arrow" />
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

@@ -10,7 +10,7 @@ export default function AdminClothingTypePage() {
   const [subCategories, setSubCategories] = useState([]);
 
   const [name, setName] = useState("");
-  const [categoryId, setCategoryId] = useState("");
+  const [categoryId, setCategoryId] = useState([]);
   const [subCategoryId, setSubCategoryId] = useState("");
   const [image, setImage] = useState(null);
   const [existingImage, setExistingImage] = useState(null);
@@ -41,25 +41,29 @@ export default function AdminClothingTypePage() {
       alert("Error fetching categories");
     }
   };
+  const handleCategoryChange = (e) => {
+    const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
+    setCategoryId(selected);
+  };
 
   // ✅ FIXED: This now properly searches the categories array
   const getCategoryNames = (categoryIds) => {
     if (!categoryIds || categoryIds.length === 0) return "N/A";
-    
+
     const names = categoryIds
-      .map(catId => {
+      .map((catId) => {
         // If already populated with name property
         if (catId?.name) return catId.name;
-        
+
         // Extract ID (handle both string and object with _id)
-        const id = typeof catId === 'string' ? catId : catId?._id;
-        
+        const id = typeof catId === "string" ? catId : catId?._id;
+
         // Find category name from categories array
-        const category = categories.find(cat => cat._id === id);
+        const category = categories.find((cat) => cat._id === id);
         return category?.name;
       })
       .filter(Boolean); // Remove any undefined/null values
-    
+
     return names.length > 0 ? names.join(", ") : "N/A";
   };
 
@@ -93,33 +97,30 @@ export default function AdminClothingTypePage() {
   /* ================= ADD / UPDATE ================= */
 
   const handleSubmit = async () => {
-    if (!name || !categoryId || !subCategoryId) {
+    if (!name || categoryId.length === 0 || !subCategoryId) {
       return alert("Name, Category and SubCategory are required");
     }
 
-    try {
-      const formData = new FormData();
-      formData.append("type", "product"); // Required by Multer
-      formData.append("name", name);
-      formData.append("categoryId", categoryId);
-      formData.append("subCategoryId", subCategoryId);
+    const formData = new FormData();
+    formData.append("type", "product");
+    formData.append("name", name);
+    formData.append("subCategoryId", subCategoryId);
 
-      if (image) formData.append("image", image);
+    // ✅ MULTIPLE CATEGORY IDs
+    categoryId.forEach((id) => {
+      formData.append("categoryId[]", id);
+    });
 
-      if (editingId) {
-        await API.put(`/product_type/update/${editingId}`, formData);
-        setToastMessage("Clothing type updated successfully");
-      } else {
-        await API.post("/product_type/addProductType", formData);
-        setToastMessage("Clothing type added successfully");
-      }
+    if (image) formData.append("image", image);
 
-      resetForm();
-      fetchClothingTypes();
-    } catch (err) {
-      console.error(err);
-      alert(err.response?.data?.message || "Save failed");
+    if (editingId) {
+      await API.put(`/product_type/update/${editingId}`, formData);
+    } else {
+      await API.post("/product_type/addProductType", formData);
     }
+
+    resetForm();
+    fetchClothingTypes();
   };
 
   /* ================= EDIT ================= */
@@ -128,9 +129,9 @@ export default function AdminClothingTypePage() {
     setName(type.name);
     setSubCategoryId(type.subCategoryId?._id || "");
     setCategoryId(
-      Array.isArray(type.categoryId) && type.categoryId.length > 0
-        ? type.categoryId[0]._id || type.categoryId[0]
-        : ""
+      Array.isArray(type.categoryId)
+        ? type.categoryId.map((c) => c._id || c)
+        : []
     );
     setEditingId(type._id);
     setExistingImage(type.images?.[0] || null);
@@ -157,7 +158,7 @@ export default function AdminClothingTypePage() {
 
   const resetForm = () => {
     setName("");
-    setCategoryId("");
+    setCategoryId([]);
     setSubCategoryId("");
     setImage(null);
     setExistingImage(null);
@@ -270,18 +271,23 @@ export default function AdminClothingTypePage() {
                 />
 
                 {/* CATEGORY */}
+                {/* CATEGORY (MULTI SELECT) */}
                 <select
                   className="form-control mb-2"
+                  multiple
                   value={categoryId}
-                  onChange={(e) => setCategoryId(e.target.value)}
+                  onChange={handleCategoryChange}
                 >
-                  <option value="">Select Category</option>
                   {categories.map((c) => (
                     <option key={c._id} value={c._id}>
                       {c.name}
                     </option>
                   ))}
                 </select>
+
+                <small className="text-muted">
+                  Hold Ctrl (Windows) / Cmd (Mac) to select multiple categories
+                </small>
 
                 {/* SUBCATEGORY */}
                 <select

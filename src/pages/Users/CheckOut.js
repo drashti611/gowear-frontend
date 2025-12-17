@@ -1,15 +1,25 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaMapMarkerAlt, FaCreditCard, FaTruck, FaPlus, FaCheck } from "react-icons/fa";
+import { useLocation } from "react-router-dom";
+
+import {
+  FaMapMarkerAlt,
+  FaCreditCard,
+  FaTruck,
+  FaPlus,
+  FaCheck,
+} from "react-icons/fa";
 import API from "../../api/axios";
 import "../../css/Customercss/Checkout.css";
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const passedCouponCode = location.state?.couponCode || "";
 
   const [cart, setCart] = useState([]);
   const [paymentType, setPaymentType] = useState("ONLINE");
-  const [couponCode, setCouponCode] = useState("");
+  const [couponCode, setCouponCode] = useState(passedCouponCode);
   const [appliedCoupons, setAppliedCoupons] = useState([]);
   const [finalAmount, setFinalAmount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -26,27 +36,51 @@ export default function Checkout() {
   });
 
   const userId = localStorage.getItem("userId");
+
+  /* =========================
+     LOAD CART (API) + ADDRESSES
+  ========================= */
   useEffect(() => {
-    const cartData = JSON.parse(localStorage.getItem("cart")) || [];
-    const coupons = JSON.parse(localStorage.getItem("appliedCoupons")) || [];
-    const amount = Number(localStorage.getItem("finalAmount")) || 0;
+    if (couponCode && cart.length > 0 && appliedCoupons.length === 0) {
+      applyCoupon();
+    }
+  }, [cart]);
 
-    setCart(cartData);
-    setAppliedCoupons(coupons);
-    setFinalAmount(amount);
+  useEffect(() => {
+    const fetchCart = async () => {
+      try {
+        const res = await API.get(`/cart/get/${userId}`);
+        setCart(res.data.items || []);
+      } catch (err) {
+        console.error("Failed to load cart", err);
+      }
+    };
 
+    fetchCart();
     fetchPreviousAddresses();
   }, []);
 
+  /* =========================
+     FINAL AMOUNT FROM CART
+  ========================= */
+  useEffect(() => {
+    const cartTotal = cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+
+    const discount = appliedCoupons.reduce((sum, c) => sum + c.discount, 0);
+
+    setFinalAmount(Math.max(cartTotal - discount, 0));
+  }, [cart, appliedCoupons]);
 
   const fetchPreviousAddresses = async () => {
     try {
       const res = await API.get(`/order/user/${userId}`);
       const orders = res.data;
 
-      // Extract unique addresses from previous orders
       const addressMap = new Map();
-      orders.forEach(order => {
+      orders.forEach((order) => {
         if (order.address && order.address.street) {
           const key = `${order.address.street}-${order.address.city}-${order.address.pincode}`;
           if (!addressMap.has(key)) {
@@ -58,7 +92,6 @@ export default function Checkout() {
       const uniqueAddresses = Array.from(addressMap.values());
       setSavedAddresses(uniqueAddresses);
 
-      // Auto-select first address if available
       if (uniqueAddresses.length > 0) {
         setSelectedAddressIndex(0);
       } else {
@@ -70,11 +103,17 @@ export default function Checkout() {
     }
   };
 
+  /* =========================
+     APPLY COUPON
+  ========================= */
   const applyCoupon = async () => {
     if (!couponCode) return alert("Enter coupon code");
 
     try {
-      const cartTotal = Number(localStorage.getItem("cartTotal")) || 0;
+      const cartTotal = cart.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
 
       const res = await fetch("http://localhost:5000/api/coupon/apply", {
         method: "POST",
@@ -86,60 +125,23 @@ export default function Checkout() {
       });
 
       const data = await res.json();
+      if (!res.ok) return alert(data.message);
 
-      if (!res.ok) {
-        alert(data.message);
-        return;
-      }
-
-      // prevent duplicate
-      if (appliedCoupons.some(c => c.code === couponCode)) {
+      if (appliedCoupons.some((c) => c.code === couponCode)) {
         alert("Coupon already applied");
         return;
       }
 
-      const updatedCoupons = [
-        ...appliedCoupons,
-        { code: couponCode, discount: data.discount },
-      ];
-
-      setAppliedCoupons(updatedCoupons);
-      localStorage.setItem("appliedCoupons", JSON.stringify(updatedCoupons));
-
-      // 🔥 final amount update
-      const updatedFinal =
-        Math.max(finalAmount - data.discount, 0);
-
-      setFinalAmount(updatedFinal);
-      localStorage.setItem("finalAmount", updatedFinal);
-
+      setAppliedCoupons([{ code: couponCode, discount: data.discount }]);
       setCouponCode("");
-    } catch (err) {
+    } catch {
       alert("Coupon apply failed");
     }
   };
 
-  // const applyCoupon = () => {
-  //   if (!couponCode) return alert("Enter a coupon code");
-  //   setAppliedCoupon(couponCode);
-  //   localStorage.setItem("appliedCoupon", couponCode);
-  //   alert(`Coupon ${couponCode} applied!`);
-  // };
-
   const removeCoupon = (code) => {
-    const couponToRemove = appliedCoupons.find(c => c.code === code);
-    const updated = appliedCoupons.filter(c => c.code !== code);
-
-    setAppliedCoupons(updated);
-    localStorage.setItem("appliedCoupons", JSON.stringify(updated));
-
-    if (couponToRemove) {
-      const updatedFinal = finalAmount + couponToRemove.discount;
-      setFinalAmount(updatedFinal);
-      localStorage.setItem("finalAmount", updatedFinal);
-    }
+    setAppliedCoupons(appliedCoupons.filter((c) => c.code !== code));
   };
-
 
   const getSelectedAddress = () => {
     if (selectedAddressIndex !== null && savedAddresses[selectedAddressIndex]) {
@@ -148,10 +150,12 @@ export default function Checkout() {
     return null;
   };
 
+  /* =========================
+     CREATE ORDER (FIXED)
+  ========================= */
   const createOrder = async () => {
     const selectedAddress = getSelectedAddress();
 
-    // Determine which address to use
     let addressToUse;
     if (showNewAddressForm) {
       addressToUse = newAddress;
@@ -161,13 +165,21 @@ export default function Checkout() {
       return alert("Please select or add a delivery address");
     }
 
-    // Validate address
-    if (!addressToUse.street || !addressToUse.city || !addressToUse.state || !addressToUse.pincode) {
+    if (
+      !addressToUse.street ||
+      !addressToUse.city ||
+      !addressToUse.state ||
+      !addressToUse.pincode
+    ) {
       return alert("Please fill all address fields");
     }
 
     setLoading(true);
-    const cartTotal = Number(localStorage.getItem("cartTotal")) || 0;
+
+    const cartTotal = cart.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
 
     try {
       const res = await fetch("http://localhost:5000/api/order/create", {
@@ -176,25 +188,15 @@ export default function Checkout() {
         body: JSON.stringify({
           userId,
           items: cart.map((item) => ({
-            productId: item._id,
-            variant: {
-              color: item.selectedColor || null,
-              size: item.selectedSize || null,
-            },
+            productId: item.productId._id, // ✅ FIX
+            variant: item.variant, // ✅ FIX
             quantity: item.quantity,
-            price:
-              item.variants?.find((v) => v.color === item.selectedColor)
-                ?.sizes?.[0]?.price || item.price,
+            price: item.price,
           })),
           totalAmount: cartTotal,
-couponCodes: appliedCoupons.map(c => c.code),
+          couponCode: appliedCoupons[0]?.code || "", // ✅ FIX
           paymentType,
-          address: {
-            street: addressToUse.street,
-            city: addressToUse.city,
-            state: addressToUse.state,
-            pincode: addressToUse.pincode,
-          },
+          address: addressToUse,
         }),
       });
 
@@ -202,11 +204,7 @@ couponCodes: appliedCoupons.map(c => c.code),
       if (!res.ok) throw new Error(data.message);
 
       if (paymentType === "COD") {
-        alert("Order placed successfully");
-        localStorage.removeItem("cart");
-        localStorage.removeItem("appliedCoupon");
-        localStorage.removeItem("finalAmount");
-        localStorage.removeItem("cartTotal");
+        await API.delete(`/cart/clear/${userId}`); // ✅ FIX
         navigate("/orders");
       } else {
         openRazorpay(data.order);
@@ -220,11 +218,7 @@ couponCodes: appliedCoupons.map(c => c.code),
 
   const loadRazorpayScript = () => {
     return new Promise((resolve) => {
-      if (window.Razorpay) {
-        resolve(true);
-        return;
-      }
-
+      if (window.Razorpay) return resolve(true);
       const script = document.createElement("script");
       script.src = "https://checkout.razorpay.com/v1/checkout.js";
       script.onload = () => resolve(true);
@@ -235,11 +229,7 @@ couponCodes: appliedCoupons.map(c => c.code),
 
   const openRazorpay = async (order) => {
     const isLoaded = await loadRazorpayScript();
-
-    if (!isLoaded) {
-      alert("Razorpay SDK failed to load. Check internet connection.");
-      return;
-    }
+    if (!isLoaded) return alert("Razorpay SDK failed to load");
 
     const options = {
       key: "rzp_test_Sh9HYbJ3Cyw97I",
@@ -259,16 +249,8 @@ couponCodes: appliedCoupons.map(c => c.code),
           }
         );
 
-        alert("Payment successful");
-        localStorage.removeItem("cart");
-        localStorage.removeItem("appliedCoupon");
-        localStorage.removeItem("finalAmount");
-        localStorage.removeItem("cartTotal");
+        await API.delete(`/cart/clear/${userId}`); // ✅ FIX
         navigate("/orders");
-      },
-      prefill: {
-        name: "Customer",
-        email: "customer@email.com",
       },
       theme: { color: "#667eea" },
     };
@@ -302,7 +284,9 @@ couponCodes: appliedCoupons.map(c => c.code),
               {savedAddresses.map((addr, index) => (
                 <div
                   key={index}
-                  className={`address-card ${selectedAddressIndex === index ? "selected" : ""}`}
+                  className={`address-card ${
+                    selectedAddressIndex === index ? "selected" : ""
+                  }`}
                   onClick={() => setSelectedAddressIndex(index)}
                 >
                   <div className="address-radio">
@@ -399,7 +383,9 @@ couponCodes: appliedCoupons.map(c => c.code),
             <div className="applied-coupons">
               {appliedCoupons.map((c) => (
                 <div key={c.code} className="applied-coupon">
-                  <span>✓ {c.code} - ₹{c.discount.toFixed(2)}</span>
+                  <span>
+                    ✓ {c.code} - ₹{c.discount.toFixed(2)}
+                  </span>
                   <button
                     className="remove-btn"
                     onClick={() => removeCoupon(c.code)}
@@ -412,15 +398,14 @@ couponCodes: appliedCoupons.map(c => c.code),
           )}
         </div>
 
-
-
         {/* Payment Section */}
         <div className="section">
           <h4>Payment Method</h4>
           <div className="payment-options">
             <button
-              className={`payment-btn ${paymentType === "ONLINE" ? "active" : ""
-                }`}
+              className={`payment-btn ${
+                paymentType === "ONLINE" ? "active" : ""
+              }`}
               onClick={() => setPaymentType("ONLINE")}
             >
               <FaCreditCard /> Online Payment

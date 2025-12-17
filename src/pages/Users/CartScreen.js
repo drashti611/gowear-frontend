@@ -1,11 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { FaTrash } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
+import API from "../../api/axios";
+import { useLocation } from "react-router-dom";
 import "../../css/Customercss/CartScreen.css";
 
 export default function CartScreen() {
+  const userId = localStorage.getItem("userId");
   const navigate = useNavigate();
+  const location = useLocation();
+  const passedCouponCode = location.state?.couponCode || "";
   const [cart, setCart] = useState([]);
+  const [sizeOptions, setSizeOptions] = useState([]);
   const [couponCode, setCouponCode] = useState("");
   const [couponMessage, setCouponMessage] = useState("");
   const [appliedCoupons, setAppliedCoupons] = useState([]);
@@ -13,9 +19,19 @@ export default function CartScreen() {
   const [showCouponModal, setShowCouponModal] = useState(false);
 
   useEffect(() => {
-    const storedCart = JSON.parse(localStorage.getItem("cart")) || [];
-    setCart(storedCart);
-  }, []);
+    if (!userId) return;
+
+    const fetchCart = async () => {
+      try {
+        const res = await API.get(`/cart/get/${userId}`);
+        setCart(res.data?.items || []);
+      } catch (err) {
+        console.error("Failed to load cart", err);
+      }
+    };
+
+    fetchCart();
+  }, [userId]);
 
   useEffect(() => {
     fetch("http://localhost:5000/api/coupon")
@@ -24,22 +40,81 @@ export default function CartScreen() {
       .catch((err) => console.error(err));
   }, []);
 
-  const updateCart = (updatedCart) => {
-    setCart(updatedCart);
-    localStorage.setItem("cart", JSON.stringify(updatedCart));
-    window.dispatchEvent(new Event("storage"));
-  };
-
-  const handleRemove = (id) => {
-    const updatedCart = cart.filter((item) => item._id !== id);
-    updateCart(updatedCart);
-  };
-
-  const handleQuantityChange = (id, quantity) => {
-    const updatedCart = cart.map((item) =>
-      item._id === id ? { ...item, quantity: Number(quantity) } : item
+  const fetchSizes = async (item) => {
+    const res = await API.get(
+      `/cart/${item.productId._id}/sizes/${encodeURIComponent(
+        item.variant.color
+      )}`
     );
-    updateCart(updatedCart);
+
+    setSizeOptions((prev) => ({
+      ...prev,
+      [item._id]: res.data,
+    }));
+  };
+  const handleSizeChange = async (itemId, newSize) => {
+    try {
+      // 1️⃣ Update size
+      await API.put("/cart/update-variant", {
+        userId,
+        itemId,
+        size: newSize,
+      });
+
+      // 2️⃣ REFRESH cart
+      const refreshed = await API.get(`/cart/get/${userId}`);
+
+      // 3️⃣ Update UI
+      setCart(refreshed.data.items);
+
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (err) {
+      console.error("Size update failed", err);
+    }
+  };
+
+  const updateVariant = async (itemId, size) => {
+    const res = await API.put("/cart/update-variant", {
+      userId,
+      itemId,
+      size,
+    });
+
+    setCart(res.data.items);
+  };
+
+  const handleRemove = async (itemId) => {
+    try {
+      const res = await API.delete(`/cart/remove/${userId}/${itemId}`);
+      setCart(res.data.items);
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (err) {
+      console.error("Failed to remove item", err);
+    }
+  };
+
+  const handleQuantityChange = async (itemId, quantity) => {
+    if (quantity < 1) return;
+
+    try {
+      // 1️⃣ Update quantity
+      await API.put("/cart/update", {
+        userId,
+        itemId,
+        quantity,
+      });
+
+      // 2️⃣ REFRESH cart (this fixes image issue)
+      const refreshed = await API.get(`/cart/get/${userId}`);
+
+      // 3️⃣ Update state with populated data
+      setCart(refreshed.data.items);
+
+      // 4️⃣ Update navbar count
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (err) {
+      console.error("Quantity update failed", err);
+    }
   };
 
   /* ======================
@@ -47,31 +122,48 @@ export default function CartScreen() {
   ====================== */
   const totalItems = cart.reduce((acc, item) => acc + item.quantity, 0);
 
-  const totalMRP = cart.reduce((acc, item) => {
-    const basePrice =
-      item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]
-        ?.price || item.price || 0;
-    return acc + basePrice * item.quantity;
-  }, 0);
+ const totalMRP = cart.reduce((acc, item) => {
+  const discountedPrice = item.price;
+  const discountPercent = item.productId?.discount || 0;
 
-  const totalDiscount = cart.reduce((acc, item) => {
-    const basePrice =
-      item.variants?.find((v) => v.color === item.selectedColor)?.sizes?.[0]
-        ?.price || item.price || 0;
-    const discountAmount = item.discount
-      ? (basePrice * item.discount) / 100
-      : 0;
-    return acc + discountAmount * item.quantity;
-  }, 0);
+  const mrp =
+    discountPercent > 0
+      ? Math.round(discountedPrice / (1 - discountPercent / 100))
+      : discountedPrice;
+
+  return acc + mrp * item.quantity;
+}, 0);
+
+const totalDiscount = cart.reduce((acc, item) => {
+  const discountedPrice = item.price;
+  const discountPercent = item.productId?.discount || 0;
+
+  if (discountPercent === 0) return acc;
+
+  const basePrice = Math.round(
+    discountedPrice / (1 - discountPercent / 100)
+  );
+
+  const discountOnMrp = basePrice - discountedPrice;
+
+  return acc + discountOnMrp * item.quantity;
+}, 0);
+
 
   const totalAmount = totalMRP - totalDiscount;
 
-  const freeShippingThreshold = 3000;
+  const freeShippingThreshold = 999;
   const shipping = totalAmount >= freeShippingThreshold ? 0 : 100;
-  const finalTotal =
-    Math.max(totalAmount - appliedCoupons.reduce((acc, c) => acc + c.discount, 0) + shipping, 0);
+  const finalTotal = Math.max(
+    totalAmount -
+      appliedCoupons.reduce((acc, c) => acc + c.discount, 0) +
+      shipping,
+    0
+  );
   const amountForFreeShipping =
-    totalAmount >= freeShippingThreshold ? 0 : freeShippingThreshold - totalAmount;
+    totalAmount >= freeShippingThreshold
+      ? 0
+      : freeShippingThreshold - totalAmount;
 
   const applyCoupon = async (codeParam) => {
     const codeToApply = codeParam || couponCode;
@@ -94,7 +186,10 @@ export default function CartScreen() {
       }
 
       if (!appliedCoupons.some((c) => c.code === codeToApply)) {
-        setAppliedCoupons([...appliedCoupons, { code: codeToApply, discount: data.discount }]);
+        setAppliedCoupons([
+          ...appliedCoupons,
+          { code: codeToApply, discount: data.discount },
+        ]);
         setCouponMessage(`Applied ${codeToApply}`);
       } else {
         setCouponMessage(`${codeToApply} is already applied`);
@@ -117,61 +212,73 @@ export default function CartScreen() {
       {/* LEFT */}
       <div className="cart-left">
         {cart.map((item) => {
+          const discountedPrice = item.price;
+          const discountPercent = item.productId?.discount || 0;
+
           const basePrice =
-            item.variants?.find((v) => v.color === item.selectedColor)
-              ?.sizes?.[0]?.price || item.price || 0;
+            discountPercent > 0
+              ? Math.round(discountedPrice / (1 - discountPercent / 100))
+              : discountedPrice;
 
-          const discountedPrice = item.discount
-            ? basePrice - (basePrice * item.discount) / 100
-            : basePrice;
+          const discountOnMrp = basePrice - discountedPrice;
 
-          const variant = item.variants?.find(
-            (v) => v.color === item.selectedColor
+          console.log(
+            "Base Price (MRP):",
+            basePrice,
+            "Discounted Price:",
+            discountedPrice,
+            "Discount on MRP:",
+            discountOnMrp
+          );
+
+          const variant = item.productId.variants?.find(
+            (v) => v.color === item.variant.color
           );
 
           return (
             <div className="cart-item" key={item._id}>
               <div className="cart-item-img">
                 <img
-                  src={`http://localhost:5000/${item.images?.[0]}`}
-                  alt={item.name}
+                  src={`http://localhost:5000/${item.productId.images?.[0]}`}
+                  alt={item.productId.name}
                 />
               </div>
 
               <div className="cart-item-details">
-                <h3 className="cart-item-name">{item.name}</h3>
+                <h3 className="cart-item-name">{item.productId.name}</h3>
 
-                {item.discount > 0 && (
-                  <span className="cart-discount">{item.discount}% OFF</span>
+                {item.productId.discount > 0 && (
+                  <span className="cart-discount">
+                    {item.productId.discount}% OFF
+                  </span>
                 )}
 
                 <p>
-                  Color: <strong>{item.selectedColor || "N/A"}</strong>
+                  Color: <strong>{item.variant.color || "N/A"}</strong>
                 </p>
 
                 <div className="cart-size">
                   <label>Size:</label>
+
                   <select
-                    value={item.selectedSize || ""}
-                    onChange={(e) => {
-                      const updatedCart = cart.map((c) =>
-                        c._id === item._id
-                          ? { ...c, selectedSize: e.target.value }
-                          : c
-                      );
-                      updateCart(updatedCart);
-                    }}
+                    value={item.variant.size}
+                    onClick={() => fetchSizes(item)}
+                    onChange={(e) => handleSizeChange(item._id, e.target.value)}
                   >
-                    {variant?.sizes?.map((s, i) => (
-                      <option key={i} value={s.size}>
-                        {s.size}
+                    {(sizeOptions[item._id] || []).map((s) => (
+                      <option
+                        key={s.size}
+                        value={s.size}
+                        disabled={s.stock === 0}
+                      >
+                        {s.size} {s.stock === 0 ? "(Out of stock)" : ""}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div className="cart-price">
-                  {item.discount > 0 ? (
+                  {item.productId.discount > 0 ? (
                     <>
                       <span className="cart-price-discounted">
                         ₹{discountedPrice.toFixed(2)}
@@ -181,8 +288,8 @@ export default function CartScreen() {
                       </span>
                     </>
                   ) : (
-                    <span className="cart-price-discounted">
-                      ₹{basePrice.toFixed(2)}
+                    <span className="cart-price-off">
+                      ({discountPercent}% OFF)
                     </span>
                   )}
                 </div>
@@ -248,7 +355,9 @@ export default function CartScreen() {
           <div className="applied-coupons">
             {appliedCoupons.map((c) => (
               <div key={c.code} className="applied-coupon">
-                <span>{c.code} - ₹{c.discount.toFixed(2)}</span>
+                <span>
+                  {c.code} - ₹{c.discount.toFixed(2)}
+                </span>
                 <button onClick={() => removeCoupon(c.code)}>✕</button>
               </div>
             ))}
@@ -262,7 +371,10 @@ export default function CartScreen() {
           <div className="coupon-modal">
             <div className="coupon-modal-header">
               <h3>Available Coupons</h3>
-              <button className="close-modal" onClick={() => setShowCouponModal(false)}>
+              <button
+                className="close-modal"
+                onClick={() => setShowCouponModal(false)}
+              >
                 ✕
               </button>
             </div>
@@ -322,12 +434,15 @@ export default function CartScreen() {
             <span>₹{totalDiscount.toFixed(2)}</span>
           </div>
 
-          {appliedCoupons.length > 0 && appliedCoupons.map((c) => (
-            <div className="cart-summary-row" key={c.code}>
-              <span>Coupon ({c.code})</span>
-              <span style={{ color: "green" }}>- ₹{c.discount.toFixed(2)}</span>
-            </div>
-          ))}
+          {appliedCoupons.length > 0 &&
+            appliedCoupons.map((c) => (
+              <div className="cart-summary-row" key={c.code}>
+                <span>Coupon ({c.code})</span>
+                <span style={{ color: "green" }}>
+                  - ₹{c.discount.toFixed(2)}
+                </span>
+              </div>
+            ))}
 
           <div className="cart-summary-row">
             <span>Shipping</span>
@@ -344,11 +459,11 @@ export default function CartScreen() {
           <button
             className="cart-checkout-btn"
             onClick={() => {
-              localStorage.setItem("cartTotal", totalAmount);
-              localStorage.setItem("finalAmount", finalTotal);
-              localStorage.setItem("appliedCoupons", JSON.stringify(appliedCoupons));
-
-              navigate("/checkout");
+              navigate("/checkout", {
+                state: {
+                  couponCode: appliedCoupons[0]?.code || "",
+                },
+              });
             }}
           >
             Checkout

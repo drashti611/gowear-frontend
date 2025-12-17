@@ -19,9 +19,10 @@ import AdminClothingTypePage from "./pages/Admin/AdminClothingTypePage";
 import CartScreen from "./pages/Users/CartScreen";
 import LikesScreen from "./pages/Users/LikesScreen";
 import AdminCouponsPage from "./pages/Admin/AdminCouponsPage";
+import AdminOrderList from "./pages/Admin/AdminOrderList";
 import Checkout from "./pages/Users/CheckOut";
 import FetachOrders from "./pages/Users/FetachOrders";
-
+import AccountSetting from "./pages/Users/AccountSetting";
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
         <Route path="/likes" element={<LikesScreen />} />
         <Route path="/checkout" element={<Checkout />} />
         <Route path="/orders" element={<FetachOrders />} />
+        <Route path="/profile" element={<AccountSetting />} />
         <Route
           path="/admin/home"
           element={
@@ -59,11 +61,13 @@ function App() {
           <Route path="brands" element={<Brand />} />
           <Route path="products" element={<AdminProductPage />} />
           <Route path="coupons" element={<AdminCouponsPage />} />
-          
-          <Route path="clothing-types" element={<AdminClothingTypePage />} /> {/* <-- New Route */}
-
+          <Route
+            path="clothing-types"
+            element={<AdminClothingTypePage />}
+          />{" "}
+          {/* <-- New Route */}
           <Route path="users" element={<AdminUsers />} />
-
+          <Route path="orders" element={<AdminOrderList />} />
           {/* Add more nested admin pages here */}
         </Route>
       </Routes>

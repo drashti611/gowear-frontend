@@ -25,8 +25,41 @@ export default function MyOrders() {
     fetchOrders();
   }, [userId]);
 
-  if (loading) return <p className="orders-loading">Loading orders...</p>;
+  /* =========================
+     CANCEL ORDER FUNCTION
+  ========================= */
+  const cancelOrder = async (orderId) => {
+    const confirmCancel = window.confirm(
+      "Are you sure you want to cancel this order?"
+    );
+    if (!confirmCancel) return;
 
+    try {
+      await API.put(`/order/cancel/${orderId}`);
+
+      // Update UI instantly
+      setOrders((prevOrders) =>
+        prevOrders.map((order) =>
+          order._id === orderId
+            ? {
+                ...order,
+                orderStatus: "Cancelled",
+                paymentStatus:
+                  order.paymentType === "COD"
+                    ? "Cancelled"
+                    : order.paymentStatus,
+              }
+            : order
+        )
+      );
+
+      alert("Order cancelled successfully");
+    } catch (error) {
+      alert(error.response?.data?.message || "Cancel failed");
+    }
+  };
+
+  if (loading) return <p className="orders-loading">Loading orders...</p>;
   if (orders.length === 0)
     return <p className="orders-empty">No orders found.</p>;
 
@@ -103,7 +136,7 @@ export default function MyOrders() {
             </p>
           </div>
 
-          {/* STATUS */}
+          {/* STATUS + CANCEL */}
           <div className="order-status">
             <span>
               Payment:{" "}
@@ -121,6 +154,17 @@ export default function MyOrders() {
             <span>
               Payment Mode: <strong>{order.paymentType}</strong>
             </span>
+
+            {/* CANCEL BUTTON */}
+            {order.orderStatus !== "Delivered" &&
+              order.orderStatus !== "Cancelled" && (
+                <button
+                  className="cancel-btn"
+                  onClick={() => cancelOrder(order._id)}
+                >
+                  Cancel Order
+                </button>
+              )}
           </div>
         </div>
       ))}

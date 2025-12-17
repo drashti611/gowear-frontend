@@ -8,6 +8,7 @@ export default function ProductDetailScreen() {
   const { id } = useParams();
   const navigate = useNavigate();
 
+  const userId = localStorage.getItem("userId");
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -17,6 +18,8 @@ export default function ProductDetailScreen() {
   const [mainImage, setMainImage] = useState("");
   const [liked, setLiked] = useState(false);
   const [toast, setToast] = useState("");
+
+  const [likedProducts, setLikedProducts] = useState([]);
 
   useEffect(() => {
     if (!id) {
@@ -31,9 +34,11 @@ export default function ProductDetailScreen() {
         setSelectedColor(res.data.variants?.[0]?.color || "");
         setMainImage(res.data.images?.[0] || "");
 
-        const likedItems =
-          JSON.parse(localStorage.getItem("likedProducts")) || [];
-        setLiked(likedItems.some((p) => p._id === res.data._id));
+        if (userId) {
+          const wishRes = await API.get(`/wishlist/${userId}`);
+          const isLiked = wishRes.data.some((p) => p._id === res.data._id);
+          setLiked(isLiked);
+        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -49,70 +54,86 @@ export default function ProductDetailScreen() {
     setSelectedSize("");
   }, [selectedColor]);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     const token = localStorage.getItem("token");
-    if (!token) {
+    const userId = localStorage.getItem("userId");
+
+    if (!token || !userId) {
       alert("Please login to add products to cart.");
       navigate("/login");
       return;
     }
 
-    if (!selectedSize) {
-      setToast("⚠️ Please select a size before adding to cart.");
+    if (!selectedSize || !selectedColor) {
+      setToast("⚠️ Please select color and size.");
       setTimeout(() => setToast(""), 2000);
       return;
     }
 
-    let cart = JSON.parse(localStorage.getItem("cart")) || [];
+    // find selected variant price
+    const variant = product.variants.find((v) => v.color === selectedColor);
 
-    const existing = cart.find(
-      (item) =>
-        item._id === product._id &&
-        item.selectedColor === selectedColor &&
-        item.selectedSize === selectedSize
-    );
+    const sizeObj = variant?.sizes.find((s) => s.size === selectedSize);
 
-    if (!existing) {
-      cart.push({
-        ...product,
-        selectedColor,
-        selectedSize,
-        quantity: 1,
-      });
-
-      localStorage.setItem("cart", JSON.stringify(cart));
-      setToast(`Added "${product.name}" (${selectedSize}) to cart!`);
-    } else {
-      setToast("This product with selected size already exists in cart.");
+    if (!sizeObj) {
+      setToast("Invalid size selection");
+      return;
     }
 
-    window.dispatchEvent(new Event("storage"));
+    try {
+      await API.post("/cart/add", {
+        userId,
+        productId: product._id,
+        variant: {
+          color: selectedColor,
+          size: selectedSize,
+        },
+        quantity: 1,
+        price: sizeObj.price,
+      });
+
+      // 🔔 notify navbar/cart badge
+      window.dispatchEvent(new Event("cartUpdated"));
+
+      setToast(`Added "${product.name}" (${selectedSize}) to cart`);
+    } catch (err) {
+      console.error(err);
+      setToast("Failed to add product to cart");
+    }
+
     setTimeout(() => setToast(""), 2000);
   };
 
-  const handleLike = () => {
+  const handleLike = async (e) => {
+    e.stopPropagation();
+
     const token = localStorage.getItem("token");
-    if (!token) {
-      alert("Please login to like products.");
+    if (!token || !userId) {
       navigate("/login");
       return;
     }
 
-    let likedItems =
-      JSON.parse(localStorage.getItem("likedProducts")) || [];
-    const isLiked = likedItems.some((p) => p._id === product._id);
+    try {
+      if (liked) {
+        // REMOVE
+        await API.post("/wishlist/remove", {
+          userId,
+          productId: product._id,
+        });
+        setLiked(false);
+      } else {
+        // ADD
+        await API.post("/wishlist/add", {
+          userId,
+          productId: product._id,
+        });
+        setLiked(true);
+      }
 
-    if (!isLiked) {
-      likedItems.push(product);
-      setLiked(true);
-      localStorage.setItem("likedProducts", JSON.stringify(likedItems));
-      window.dispatchEvent(new Event("storage"));
-      navigate("/likes");
-    } else {
-      likedItems = likedItems.filter((p) => p._id !== product._id);
-      setLiked(false);
-      localStorage.setItem("likedProducts", JSON.stringify(likedItems));
-      window.dispatchEvent(new Event("storage"));
+      // 🔔 UPDATE NAVBAR COUNT
+      window.dispatchEvent(new Event("wishlistUpdated"));
+    } catch (err) {
+      console.error(err);
     }
   };
 
