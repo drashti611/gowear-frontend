@@ -81,12 +81,21 @@ export default function SubCategoryScreen() {
       ) : (
         <div className="subcat-grid">
           {subCategories.map((sub) => {
-            const imagePath =
-              Array.isArray(sub.images) && sub.images.length > 0
-                ? typeof sub.images[0] === "string"
-                  ? sub.images[0]
-                  : sub.images[0].path || sub.images[0].url
-                : null;
+            let imagePath = null;
+            if (Array.isArray(sub.images) && sub.images.length > 0) {
+              const matchedImg = sub.images.find((img) => {
+                if (!img) return false;
+                if (typeof img === "string") return false;
+                const cId = (img.categoryId?._id || img.categoryId)?.toString();
+                return cId === id?.toString();
+              });
+
+              const targetImg = matchedImg || sub.images[0];
+              imagePath =
+                typeof targetImg === "string"
+                  ? targetImg
+                  : targetImg?.path || targetImg?.url;
+            }
 
             return (
               <div

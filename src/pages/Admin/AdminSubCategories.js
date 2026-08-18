@@ -215,7 +215,7 @@ const fetchSubCategories = async () => {
   // Edit subcategory: populate fields + build existing image map (by categoryId)
   const handleEdit = (sub) => {
     setName(sub.name || "");
-    const catIds = sub.categoryIds?.map((cat) => cat._id) || [];
+    const catIds = sub.categoryIds?.map((cat) => cat._id || cat) || [];
     setCategoryIds(catIds);
 
     // Build maps for existing images. Expecting backend to return images like:
@@ -225,7 +225,7 @@ const fetchSubCategories = async () => {
     if (Array.isArray(sub.images)) {
       sub.images.forEach((imgObj) => {
         // ensure categoryId is present and imgObj.path is relative path
-        const cid = imgObj.categoryId?.toString();
+        const cid = (imgObj.categoryId?._id || imgObj.categoryId)?.toString();
         if (cid) {
           imagesMap[cid] = { _id: imgObj._id, path: imgObj.path };
           initialMap[cid] = imgObj._id;
@@ -243,7 +243,7 @@ const fetchSubCategories = async () => {
 
   // Helper: get category name from id (from categories state or sub.categoryIds)
   const getCategoryName = (categoryId) => {
-    const cat = categories.find((c) => c._id === categoryId);
+    const cat = categories.find((c) => c._id?.toString() === categoryId?.toString());
     if (cat) return cat.name;
     return categoryId;
   };
@@ -307,7 +307,7 @@ const fetchSubCategories = async () => {
                           const catId =
                             typeof imgObj === "string"
                               ? null
-                              : imgObj.categoryId || null;
+                              : (imgObj.categoryId?._id || imgObj.categoryId)?.toString() || null;
                           return (
                             <div
                               key={imgObj._id || imgPath}
