@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { FaSearch, FaBoxOpen } from "react-icons/fa";
 import API from "../../api/axios";
@@ -13,7 +13,6 @@ export default function SearchResults() {
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
   const handleSearch = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -40,15 +39,17 @@ export default function SearchResults() {
   return (
     <div className="search-page-wrapper container">
       <div className="search-hero-box">
-        <h2>Search GoWear Collection</h2>
-        <p className="text-muted" style={{ fontSize: "15px", marginBottom: "20px" }}>
-          Find designer clothing, streetwear, accessories, and seasonal collections.
+        <h2 className="font-editorial" style={{ fontSize: "36px", color: "var(--gold-primary)", marginBottom: "12px" }}>
+          Search The Atelier Archive
+        </h2>
+        <p className="text-muted" style={{ fontSize: "14px", marginBottom: "28px" }}>
+          Find high-fashion silhouettes, streetwear collections, and luxury accessories.
         </p>
 
-        <form onSubmit={handleSearch} className="search-form-luxury">
+        <form onSubmit={handleSearch} className="search-form-noir">
           <input
             type="text"
-            placeholder="Search shirts, jackets, sneakers, hoodies..."
+            placeholder="Search jackets, boots, silk shirts, accessories..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -60,14 +61,16 @@ export default function SearchResults() {
 
       {loading ? (
         <div className="d-flex justify-content-center align-items-center py-5">
-          <div className="spinner-border text-primary" role="status">
-            <span className="visually-hidden">Searching...</span>
+          <div className="spinner-border text-warning" role="status">
+            <span className="visually-hidden">Searching archive...</span>
           </div>
         </div>
       ) : results.length > 0 ? (
         <div>
-          <div className="mb-4" style={{ fontSize: "15px", color: "var(--text-secondary)" }}>
-            Found <strong>{results.length}</strong> styles matching "{searchTerm}"
+          <div className="mb-4 d-flex justify-content-between align-items-center" style={{ fontSize: "14px", color: "var(--text-dim)" }}>
+            <span>
+              Found <strong className="text-gold">{results.length}</strong> styles matching "{searchTerm}"
+            </span>
           </div>
 
           <div className="luxury-products-grid">
@@ -117,9 +120,9 @@ export default function SearchResults() {
           </div>
         </div>
       ) : searchTerm.trim() ? (
-        <div className="text-center py-5 bg-white rounded-4 border p-4 shadow-sm">
-          <FaBoxOpen size={48} className="text-muted mb-3" />
-          <h4>No Styles Found</h4>
+        <div className="glass-noir text-center py-5 p-4 my-4">
+          <FaBoxOpen size={48} className="text-gold mb-3" />
+          <h4 style={{ color: "#ffffff" }}>No Pieces Found</h4>
           <p className="text-muted">We couldn't find any items matching "{searchTerm}". Try a different keyword.</p>
         </div>
       ) : null}

@@ -43,6 +43,7 @@ export default function CartScreen() {
       return;
     }
     fetchCart();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   useEffect(() => {

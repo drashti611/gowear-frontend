@@ -19,7 +19,7 @@ export default function Checkout() {
 
   const [cart, setCart] = useState([]);
   const [paymentType, setPaymentType] = useState("ONLINE");
-  const [couponCode, setCouponCode] = useState(passedCouponCode);
+  const [couponCode] = useState(passedCouponCode);
   const [appliedCoupons, setAppliedCoupons] = useState([]);
   const [finalAmount, setFinalAmount] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -64,6 +64,7 @@ export default function Checkout() {
     if (couponCode && cart.length > 0 && appliedCoupons.length === 0) {
       applyCoupon();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cart]);
 
   useEffect(() => {
@@ -78,6 +79,7 @@ export default function Checkout() {
 
     fetchCart();
     fetchPreviousAddresses();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   useEffect(() => {
@@ -137,7 +139,7 @@ export default function Checkout() {
         couponCode: appliedCoupons[0]?.code || null,
       };
 
-      const res = await API.post("/order/create", orderPayload);
+      await API.post("/order/create", orderPayload);
       alert("Order placed successfully! Thank you for shopping with GoWear.");
       window.dispatchEvent(new Event("cartUpdated"));
       navigate("/orders");

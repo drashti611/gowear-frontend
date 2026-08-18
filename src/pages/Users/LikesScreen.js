@@ -25,6 +25,7 @@ export default function LikesScreen() {
   useEffect(() => {
     if (userId) fetchWishlist();
     else setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
   const showToast = (message) => {

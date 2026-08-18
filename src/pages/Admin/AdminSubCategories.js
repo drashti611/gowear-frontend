@@ -62,6 +62,7 @@ const fetchSubCategories = async () => {
   useEffect(() => {
     fetchCategories();
     fetchSubCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Search filter
