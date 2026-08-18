@@ -1,158 +1,193 @@
-/* SubCategoryScreen.css */
+/* ==========================================================================
+   GoWear Luxury Subcategory Screen Styles
+   ========================================================================== */
 
-/* Spinner & Loading */
-.loading-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 60vh;
+.subcat-screen-wrapper {
+  padding: 30px 0 60px 0;
+  min-height: 80vh;
 }
 
-.spinner {
-  border: 6px solid #f3f3f3;
-  border-top: 6px solid #3498db;
-  border-radius: 50%;
-  width: 50px;
-  height: 50px;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-/* Container */
-.subcategory-container {
-  max-width: 1200px;
-  margin: 2rem auto;
-  padding: 0 1rem;
-}
-
-/* No data text */
-.no-data {
-  text-align: center;
-  color: #777;
-  font-size: 1.1rem;
-  margin-top: 2rem;
-}
-
-/* Subcategory Grid */
-.subcategory-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-}
-
-/* Subcategory Card */
-.subcategory-card {
+/* Header & Breadcrumb */
+.subcat-header-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 36px 40px;
+  margin-bottom: 40px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
   position: relative;
-  cursor: pointer;
-  border-radius: 10px;
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
 }
 
-.subcategory-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-}
-
-.subcategory-card img {
-  width: 100%;
-  height: 200px;
-  object-fit: cover;
-  display: block;
-}
-
-.subcategory-card .overlay {
+.subcat-header-card::before {
+  content: '';
   position: absolute;
-  bottom: 0;
+  top: 0;
   left: 0;
-  width: 100%;
-  background: rgba(0, 0, 0, 0.55);
-  color: #fff;
-  padding: 0.8rem 1rem;
-  font-weight: 500;
-  font-size: 1rem;
-  text-align: center;
-  transition: background 0.3s ease;
+  width: 6px;
+  height: 100%;
+  background: var(--gradient-primary);
 }
 
-.subcategory-card:hover .overlay {
-  background: rgba(0, 0, 0, 0.7);
+.subcat-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
 }
 
-/* Brands Section */
-.brand-section {
-  margin-top: 3rem;
-}
-
-.brand-title {
-  font-size: 1.5rem;
+.subcat-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-full);
+  font-size: 13.5px;
   font-weight: 600;
-  margin-bottom: 1rem;
-  color: #333;
-  text-align: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: var(--transition-fast);
 }
 
-/* Brand Grid */
-.brand-grid {
+.subcat-back-btn:hover {
+  background: var(--primary-subtle);
+  color: var(--primary);
+  border-color: var(--primary-light);
+  transform: translateX(-3px);
+}
+
+.subcat-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.subcat-breadcrumb-link {
+  color: var(--primary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.subcat-title {
+  font-size: 34px;
+  font-weight: 800;
+  margin: 0 0 6px 0;
+}
+
+.subcat-subtitle {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* Subcategory Bento Grid */
+.subcat-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-  gap: 1.5rem;
-  justify-items: center;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 28px;
 }
 
-/* Brand Card */
-.brand-card {
+.subcat-card {
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: var(--transition-normal);
   display: flex;
   flex-direction: column;
-  align-items: center;
-  transition: transform 0.3s ease;
-  cursor: pointer;
 }
 
-.brand-card:hover {
-  transform: scale(1.05);
+.subcat-card:hover {
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--border-focus);
 }
 
-.brand-card img {
-  width: 80px;
-  height: 80px;
+.subcat-image-wrapper {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  overflow: hidden;
+  background: var(--gradient-subtle);
+}
+
+.subcat-image {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
-  border-radius: 50%;
-  margin-bottom: 0.5rem;
-  border: 2px solid #3498db;
-  padding: 3px;
-  background: #fff;
+  transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.brand-name {
-  font-size: 0.95rem;
-  color: #555;
+.subcat-card:hover .subcat-image {
+  transform: scale(1.08);
+}
+
+.subcat-card-body {
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.subcat-card-name {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.subcat-card-action {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-full);
+  background: var(--primary-subtle);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: var(--transition-fast);
+}
+
+.subcat-card:hover .subcat-card-action {
+  background: var(--primary);
+  color: #ffffff;
+  transform: translateX(3px);
+}
+
+/* Empty State */
+.subcat-empty-state {
   text-align: center;
+  padding: 70px 20px;
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
 }
 
-/* Responsive tweaks */
+.subcat-empty-icon {
+  font-size: 48px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
 @media (max-width: 768px) {
-  .subcategory-card img {
-    height: 180px;
+  .subcat-header-card {
+    padding: 24px 20px;
   }
 
-  .brand-card img {
-    width: 70px;
-    height: 70px;
-  }
-}
-
-@media (max-width: 480px) {
-  .subcategory-card img {
-    height: 150px;
+  .subcat-title {
+    font-size: 26px;
   }
 
-  .brand-grid {
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+  .subcat-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
   }
 }

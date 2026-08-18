@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/axios";
+import getImageUrl from "../../utils/imageUrl";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/AdminCss/AdminCategoryPage.css";
 import "../../css/AdminCss/AdminProductPage.css";
@@ -373,7 +374,7 @@ export default function AdminProductPage() {
                       p.images.map((img, idx) => (
                         <img
                           key={idx}
-                          src={`http://localhost:5000/${img}`}
+                          src={getImageUrl(img)}
                           alt={p.name}
                           className="product-table-image"
                         />
@@ -620,7 +621,7 @@ export default function AdminProductPage() {
                           {productData.existingImages.map((img, idx) => (
                             <div key={idx} className="position-relative">
                               <img
-                                src={`http://localhost:5000/${img}`}
+                                src={getImageUrl(img)}
                                 alt="existing"
                                 className="product-table-image"
                               />

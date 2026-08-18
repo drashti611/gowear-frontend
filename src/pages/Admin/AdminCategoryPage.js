@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/axios";
+import getImageUrl from "../../utils/imageUrl";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/AdminCss/AdminCategoryPage.css";
 import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
@@ -171,7 +172,7 @@ export default function AdminCategoryPage() {
                   <td>
                     {cat.images?.[0] ? (
                       <img
-                        src={`http://localhost:5000/${cat.images[0]}`}
+                        src={getImageUrl(cat.images[0])}
                         alt={cat.name}
                         style={{
                           width: "60px",
@@ -256,7 +257,7 @@ export default function AdminCategoryPage() {
                     {existingImage && !removeExistingImage && (
                       <div className="mb-3 position-relative d-inline-block">
                         <img
-                          src={`http://localhost:5000/${existingImage}`}
+                          src={getImageUrl(existingImage)}
                           alt="cat"
                           style={{
                             width: "80px",

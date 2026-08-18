@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/axios";
+import getImageUrl from "../../utils/imageUrl";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/AdminCss/AdminProductPage.css";
 import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
@@ -168,8 +169,7 @@ export default function AdminClothingTypePage() {
     setTimeout(() => setShowToast(false), 3000);
   };
 
-  const fullImageUrl = (path) =>
-    path?.startsWith("http") ? path : `http://localhost:5000/${path}`;
+  const fullImageUrl = (path) => getImageUrl(path);
 
   /* ================= UI ================= */
 

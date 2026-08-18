@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useLocation } from "react-router-dom";
-
+import { useNavigate, useLocation } from "react-router-dom";
 import {
-  FaMapMarkerAlt,
   FaCreditCard,
-  FaTruck,
+  FaMoneyBillWave,
+  FaLock,
   FaPlus,
   FaCheck,
+  FaArrowRight,
 } from "react-icons/fa";
 import API from "../../api/axios";
+import getImageUrl from "../../utils/imageUrl";
 import "../../css/Customercss/Checkout.css";
 
 export default function Checkout() {
@@ -29,6 +29,7 @@ export default function Checkout() {
   const [selectedAddressIndex, setSelectedAddressIndex] = useState(null);
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [newAddress, setNewAddress] = useState({
+    label: "Home",
     street: "",
     city: "",
     state: "",
@@ -37,9 +38,28 @@ export default function Checkout() {
 
   const userId = localStorage.getItem("userId");
 
-  /* =========================
-     LOAD CART (API) + ADDRESSES
-  ========================= */
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    try {
+      const cartTotal = cart.reduce(
+        (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+        0
+      );
+      const res = await API.post("/coupon/apply", {
+        code: couponCode.trim(),
+        cartTotal,
+      });
+      setAppliedCoupons([
+        {
+          code: couponCode.trim(),
+          discount: res.data.discount || 0,
+        },
+      ]);
+    } catch (err) {
+      console.error("Coupon auto-apply failed:", err);
+    }
+  };
+
   useEffect(() => {
     if (couponCode && cart.length > 0 && appliedCoupons.length === 0) {
       applyCoupon();
@@ -52,32 +72,27 @@ export default function Checkout() {
         const res = await API.get(`/cart/get/${userId}`);
         setCart(res.data.items || []);
       } catch (err) {
-        console.error("Failed to load cart", err);
+        console.error("Failed to load cart:", err);
       }
     };
 
     fetchCart();
     fetchPreviousAddresses();
-  }, []);
+  }, [userId]);
 
-  /* =========================
-     FINAL AMOUNT FROM CART
-  ========================= */
   useEffect(() => {
     const cartTotal = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
+      (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
       0
     );
-
     const discount = appliedCoupons.reduce((sum, c) => sum + c.discount, 0);
-
     setFinalAmount(Math.max(cartTotal - discount, 0));
   }, [cart, appliedCoupons]);
 
   const fetchPreviousAddresses = async () => {
     try {
       const res = await API.get(`/order/user/${userId}`);
-      const orders = res.data;
+      const orders = res.data || [];
 
       const addressMap = new Map();
       orders.forEach((order) => {
@@ -98,340 +113,281 @@ export default function Checkout() {
         setShowNewAddressForm(true);
       }
     } catch (error) {
-      console.error("Failed to fetch addresses", error);
+      console.error("Error fetching addresses:", error);
       setShowNewAddressForm(true);
     }
   };
 
-  /* =========================
-     APPLY COUPON
-  ========================= */
-  const applyCoupon = async () => {
-    if (!couponCode) return alert("Enter coupon code");
+  const handlePlaceOrder = async () => {
+    const activeAddress = showNewAddressForm
+      ? newAddress
+      : savedAddresses[selectedAddressIndex];
 
-    try {
-      const cartTotal = cart.reduce(
-        (sum, item) => sum + item.price * item.quantity,
-        0
-      );
-
-      const res = await fetch("http://localhost:5000/api/coupon/apply", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          code: couponCode,
-          orderAmount: cartTotal,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) return alert(data.message);
-
-      if (appliedCoupons.some((c) => c.code === couponCode)) {
-        alert("Coupon already applied");
-        return;
-      }
-
-      setAppliedCoupons([{ code: couponCode, discount: data.discount }]);
-      setCouponCode("");
-    } catch {
-      alert("Coupon apply failed");
-    }
-  };
-
-  const removeCoupon = (code) => {
-    setAppliedCoupons(appliedCoupons.filter((c) => c.code !== code));
-  };
-
-  const getSelectedAddress = () => {
-    if (selectedAddressIndex !== null && savedAddresses[selectedAddressIndex]) {
-      return savedAddresses[selectedAddressIndex];
-    }
-    return null;
-  };
-
-  /* =========================
-     CREATE ORDER (FIXED)
-  ========================= */
-  const createOrder = async () => {
-    const selectedAddress = getSelectedAddress();
-
-    let addressToUse;
-    if (showNewAddressForm) {
-      addressToUse = newAddress;
-    } else if (selectedAddress) {
-      addressToUse = selectedAddress;
-    } else {
-      return alert("Please select or add a delivery address");
-    }
-
-    if (
-      !addressToUse.street ||
-      !addressToUse.city ||
-      !addressToUse.state ||
-      !addressToUse.pincode
-    ) {
-      return alert("Please fill all address fields");
+    if (!activeAddress || !activeAddress.street || !activeAddress.city || !activeAddress.pincode) {
+      alert("Please enter or select a complete shipping address.");
+      return;
     }
 
     setLoading(true);
-
-    const cartTotal = cart.reduce(
-      (sum, item) => sum + item.price * item.quantity,
-      0
-    );
-
     try {
-      const res = await fetch("http://localhost:5000/api/order/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          items: cart.map((item) => ({
-            productId: item.productId._id, // ✅ FIX
-            variant: item.variant, // ✅ FIX
-            quantity: item.quantity,
-            price: item.price,
-          })),
-          totalAmount: cartTotal,
-          couponCode: appliedCoupons[0]?.code || "", // ✅ FIX
-          paymentType,
-          address: addressToUse,
-        }),
-      });
+      const orderPayload = {
+        userId,
+        address: activeAddress,
+        paymentType,
+        couponCode: appliedCoupons[0]?.code || null,
+      };
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
-
-      if (paymentType === "COD") {
-        await API.delete(`/cart/clear/${userId}`); // ✅ FIX
-        navigate("/orders");
-      } else {
-        openRazorpay(data.order);
-      }
+      const res = await API.post("/order/create", orderPayload);
+      alert("Order placed successfully! Thank you for shopping with GoWear.");
+      window.dispatchEvent(new Event("cartUpdated"));
+      navigate("/orders");
     } catch (err) {
-      alert(err.message);
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to place order. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
-  };
-
-  const openRazorpay = async (order) => {
-    const isLoaded = await loadRazorpayScript();
-    if (!isLoaded) return alert("Razorpay SDK failed to load");
-
-    const options = {
-      key: "rzp_test_Sh9HYbJ3Cyw97I",
-      amount: order.finalAmount * 100,
-      currency: "INR",
-      name: "GoWear",
-      description: "Order Payment",
-      handler: async function (response) {
-        await fetch(
-          `http://localhost:5000/api/order/payment-success/${order._id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              paymentId: response.razorpay_payment_id,
-            }),
-          }
-        );
-
-        await API.delete(`/cart/clear/${userId}`); // ✅ FIX
-        navigate("/orders");
-      },
-      theme: { color: "#667eea" },
-    };
-
-    const razorpay = new window.Razorpay(options);
-    razorpay.open();
-  };
+  const subtotal = cart.reduce(
+    (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+    0
+  );
+  const totalDiscount = appliedCoupons.reduce((sum, c) => sum + c.discount, 0);
 
   return (
-    <div className="checkout-container">
-      <div className="checkout-card">
-        <h2 className="checkout-title">Checkout</h2>
-
-        {/* Address Section */}
-        <div className="section">
-          <div className="section-header">
-            <h4>Delivery Address</h4>
-            {savedAddresses.length > 0 && (
-              <button
-                className="add-address-btn"
-                onClick={() => setShowNewAddressForm(!showNewAddressForm)}
-              >
-                <FaPlus /> {showNewAddressForm ? "Show Saved" : "Add New"}
-              </button>
-            )}
-          </div>
-
-          {/* Saved Addresses List */}
-          {!showNewAddressForm && savedAddresses.length > 0 && (
-            <div className="saved-addresses">
-              {savedAddresses.map((addr, index) => (
-                <div
-                  key={index}
-                  className={`address-card ${
-                    selectedAddressIndex === index ? "selected" : ""
-                  }`}
-                  onClick={() => setSelectedAddressIndex(index)}
+    <div className="checkout-page-wrapper container">
+      <div className="checkout-grid">
+        {/* Left Column: Multi-Step Form */}
+        <div className="checkout-steps-column">
+          {/* Step 1: Shipping Address */}
+          <div className="checkout-card-section">
+            <div className="checkout-section-header">
+              <h3>
+                <span className="step-number-badge">1</span>
+                Shipping Address
+              </h3>
+              {savedAddresses.length > 0 && (
+                <button
+                  type="button"
+                  className="btn-luxury-secondary"
+                  style={{ padding: "6px 14px", fontSize: "12.5px" }}
+                  onClick={() => setShowNewAddressForm(!showNewAddressForm)}
                 >
-                  <div className="address-radio">
-                    {selectedAddressIndex === index && <FaCheck />}
-                  </div>
-                  <div className="address-details">
-                    <FaMapMarkerAlt className="address-icon" />
-                    <div>
-                      <p className="address-text">
-                        {addr.street}, {addr.city}
-                      </p>
-                      <p className="address-text">
-                        {addr.state} - {addr.pincode}
-                      </p>
+                  <FaPlus /> {showNewAddressForm ? "Select Saved" : "Add New Address"}
+                </button>
+              )}
+            </div>
+
+            {!showNewAddressForm && savedAddresses.length > 0 ? (
+              <div className="address-cards-grid">
+                {savedAddresses.map((addr, idx) => (
+                  <div
+                    key={idx}
+                    className={`address-selectable-card ${
+                      selectedAddressIndex === idx ? "selected" : ""
+                    }`}
+                    onClick={() => setSelectedAddressIndex(idx)}
+                  >
+                    <div className="address-card-header">
+                      <span className="address-type-pill">{addr.label || "Home"}</span>
+                      {selectedAddressIndex === idx && (
+                        <FaCheck style={{ color: "var(--primary)" }} />
+                      )}
                     </div>
+                    <p className="address-card-text">
+                      <strong>{addr.street}</strong>
+                      <br />
+                      {addr.city}, {addr.state} - {addr.pincode}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="new-address-inputs">
+                <div className="form-row">
+                  <div className="luxury-input-group">
+                    <label>Address Label</label>
+                    <input
+                      type="text"
+                      className="luxury-input"
+                      placeholder="Home / Office"
+                      value={newAddress.label}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, label: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="luxury-input-group">
+                    <label>Street Address</label>
+                    <input
+                      type="text"
+                      className="luxury-input"
+                      placeholder="House No., Street name"
+                      value={newAddress.street}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, street: e.target.value })
+                      }
+                      required
+                    />
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
 
-          {/* New Address Form */}
-          {(showNewAddressForm || savedAddresses.length === 0) && (
-            <div className="new-address-form">
-              <div className="input-group">
-                <FaMapMarkerAlt className="icon" />
-                <input
-                  placeholder="Street Address"
-                  value={newAddress.street}
-                  onChange={(e) =>
-                    setNewAddress({ ...newAddress, street: e.target.value })
-                  }
-                />
+                <div className="form-row">
+                  <div className="luxury-input-group">
+                    <label>City</label>
+                    <input
+                      type="text"
+                      className="luxury-input"
+                      placeholder="Mumbai / Delhi"
+                      value={newAddress.city}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, city: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="luxury-input-group">
+                    <label>State</label>
+                    <input
+                      type="text"
+                      className="luxury-input"
+                      placeholder="Maharashtra"
+                      value={newAddress.state}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, state: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="luxury-input-group" style={{ maxWidth: "140px" }}>
+                    <label>Pincode</label>
+                    <input
+                      type="text"
+                      className="luxury-input"
+                      placeholder="400001"
+                      value={newAddress.pincode}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, pincode: e.target.value })
+                      }
+                      maxLength="6"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
-              <div className="input-group">
-                <FaMapMarkerAlt className="icon" />
-                <input
-                  placeholder="City"
-                  value={newAddress.city}
-                  onChange={(e) =>
-                    setNewAddress({ ...newAddress, city: e.target.value })
-                  }
-                />
-              </div>
-              <div className="input-group">
-                <FaMapMarkerAlt className="icon" />
-                <input
-                  placeholder="State"
-                  value={newAddress.state}
-                  onChange={(e) =>
-                    setNewAddress({ ...newAddress, state: e.target.value })
-                  }
-                />
-              </div>
-              <div className="input-group">
-                <FaMapMarkerAlt className="icon" />
-                <input
-                  placeholder="Pincode"
-                  value={newAddress.pincode}
-                  onChange={(e) =>
-                    setNewAddress({ ...newAddress, pincode: e.target.value })
-                  }
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Coupon Section */}
-        {/* Coupon Section */}
-        <div className="section">
-          <h4>Apply Coupon</h4>
-
-          <div className="coupon-group">
-            <input
-              placeholder="Enter coupon code"
-              value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-              disabled={appliedCoupons.length > 0}
-            />
-
-            {appliedCoupons.length === 0 ? (
-              <button className="apply-btn" onClick={applyCoupon}>
-                Apply
-              </button>
-            ) : (
-              <button className="apply-btn" disabled>
-                Applied
-              </button>
             )}
           </div>
 
-          {appliedCoupons.length > 0 && (
-            <div className="applied-coupons">
-              {appliedCoupons.map((c) => (
-                <div key={c.code} className="applied-coupon">
-                  <span>
-                    ✓ {c.code} - ₹{c.discount.toFixed(2)}
+          {/* Step 2: Payment Method */}
+          <div className="checkout-card-section">
+            <div className="checkout-section-header">
+              <h3>
+                <span className="step-number-badge">2</span>
+                Payment Options
+              </h3>
+            </div>
+
+            <div className="payment-methods-grid">
+              <div
+                className={`payment-method-card ${
+                  paymentType === "ONLINE" ? "selected" : ""
+                }`}
+                onClick={() => setPaymentType("ONLINE")}
+              >
+                <div className="payment-method-icon">
+                  <FaCreditCard />
+                </div>
+                <div className="payment-method-info">
+                  <h5>Instant Online Payment</h5>
+                  <p>UPI, Cards, Netbanking & Wallets</p>
+                </div>
+                {paymentType === "ONLINE" && <FaCheck className="ms-auto text-primary" />}
+              </div>
+
+              <div
+                className={`payment-method-card ${
+                  paymentType === "COD" ? "selected" : ""
+                }`}
+                onClick={() => setPaymentType("COD")}
+              >
+                <div className="payment-method-icon">
+                  <FaMoneyBillWave />
+                </div>
+                <div className="payment-method-info">
+                  <h5>Cash On Delivery</h5>
+                  <p>Pay upon physical arrival</p>
+                </div>
+                {paymentType === "COD" && <FaCheck className="ms-auto text-primary" />}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Sticky Order Recap */}
+        <div className="checkout-summary-column">
+          <div className="checkout-summary-card">
+            <h3 className="cart-summary-title">Order Recap</h3>
+
+            <div className="checkout-items-preview">
+              {cart.map((item) => (
+                <div key={item._id} className="checkout-mini-item">
+                  <img
+                    src={getImageUrl(item.productId?.images?.[0])}
+                    alt={item.productId?.name}
+                    className="checkout-mini-thumb"
+                  />
+                  <div className="checkout-mini-details">
+                    <h6>{item.productId?.name}</h6>
+                    <span>
+                      Qty: {item.quantity} • {item.variant?.color} ({item.variant?.size})
+                    </span>
+                  </div>
+                  <span className="checkout-mini-price">
+                    ₹{((item.price || 0) * item.quantity).toLocaleString()}
                   </span>
-                  <button
-                    className="remove-btn"
-                    onClick={() => removeCoupon(c.code)}
-                  >
-                    Remove
-                  </button>
                 </div>
               ))}
             </div>
-          )}
-        </div>
 
-        {/* Payment Section */}
-        <div className="section">
-          <h4>Payment Method</h4>
-          <div className="payment-options">
-            <button
-              className={`payment-btn ${
-                paymentType === "ONLINE" ? "active" : ""
-              }`}
-              onClick={() => setPaymentType("ONLINE")}
-            >
-              <FaCreditCard /> Online Payment
-            </button>
-            <button
-              className={`payment-btn ${paymentType === "COD" ? "active" : ""}`}
-              onClick={() => setPaymentType("COD")}
-            >
-              <FaTruck /> Cash on Delivery
-            </button>
-          </div>
-        </div>
+            <div className="summary-line-row">
+              <span>Subtotal</span>
+              <strong>₹{subtotal.toLocaleString()}</strong>
+            </div>
 
-        {/* Summary & Place Order */}
-        <div className="summary">
-          <div className="summary-row">
-            <span>Total Amount:</span>
-            <span className="summary-amount">₹{finalAmount.toFixed(2)}</span>
+            {totalDiscount > 0 && (
+              <div className="summary-line-row" style={{ color: "var(--accent-emerald)" }}>
+                <span>Coupon Applied ({appliedCoupons[0]?.code})</span>
+                <strong>-₹{totalDiscount.toLocaleString()}</strong>
+              </div>
+            )}
+
+            <div className="summary-line-row">
+              <span>Delivery Fee</span>
+              <strong style={{ color: "var(--accent-emerald)" }}>FREE</strong>
+            </div>
+
+            <div className="summary-total-row">
+              <span>Total Payable</span>
+              <span className="gradient-text">₹{finalAmount.toLocaleString()}</span>
+            </div>
+
+            <button
+              type="button"
+              className="btn-luxury-primary checkout-proceed-btn"
+              onClick={handlePlaceOrder}
+              disabled={loading || cart.length === 0}
+            >
+              {loading ? "Confirming Order..." : "Place Order & Pay"} <FaArrowRight />
+            </button>
+
+            <div
+              className="d-flex align-items-center justify-content-center gap-2 mt-3 text-muted"
+              style={{ fontSize: "12px" }}
+            >
+              <FaLock style={{ color: "var(--accent-emerald)" }} /> Safe & Encrypted Checkout
+            </div>
           </div>
-          <button
-            className="place-order-btn"
-            disabled={loading}
-            onClick={createOrder}
-          >
-            {loading ? "Processing..." : "Place Order"}
-          </button>
         </div>
       </div>
     </div>

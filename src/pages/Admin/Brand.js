@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import API from "../../api/axios";
+import getImageUrl from "../../utils/imageUrl";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/AdminCss/AdminCategoryPage.css";
 import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
@@ -180,7 +181,7 @@ export default function Brand() {
                   <td>
                     {brand.images?.[0] ? (
                       <img
-                        src={`http://localhost:5000/${brand.images[0]}`}
+                        src={getImageUrl(brand.images[0])}
                         alt={brand.name}
                         style={{
                           width: "50px",
@@ -264,7 +265,7 @@ export default function Brand() {
                         style={{ display: "inline-block" }}
                       >
                         <img
-                          src={`http://localhost:5000/${existingImage}`}
+                          src={getImageUrl(existingImage)}
                           alt="brand"
                           style={{
                             width: "80px",

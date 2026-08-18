@@ -1,198 +1,104 @@
-/* ================= GLOBAL ================= */
-.account-setting {
-  max-width: 900px;
-  margin: 40px auto;
-  padding: 20px;
-  font-family: "Segoe UI", sans-serif;
-  color: #333;
+/* ==========================================================================
+   GoWear Luxury Account & Profile Settings Styles
+   ========================================================================== */
+
+.account-page-wrapper {
+  padding: 40px 0 80px 0;
+  min-height: 80vh;
 }
 
-.account-setting h2 {
+.account-settings-container {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.account-luxury-card {
+  background: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 36px;
+  border: 1px solid var(--border-light);
+  box-shadow: var(--shadow-md);
   margin-bottom: 30px;
-  font-weight: 700;
-  font-size: 28px;
-  text-align: center;
-  color: #1e3a8a; /* deep blue */
+  position: relative;
 }
 
-/* ================= PROFILE CARD ================= */
-.profile-card {
-  background: #fff;
-  padding: 30px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-  margin-bottom: 40px;
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.profile-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 15px 30px rgba(0,0,0,0.08);
-}
-
-.profile-header {
+.account-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e5e7eb;
-  padding-bottom: 15px;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border-light);
+  margin-bottom: 24px;
 }
 
-.profile-header h4 {
+.account-card-header h3 {
   font-size: 20px;
-  font-weight: 600;
+  font-weight: 800;
+  margin: 0;
 }
 
-.edit-btn {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  padding: 6px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: background 0.3s;
+.account-profile-preview {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
 }
 
-.edit-btn:hover {
-  background: #2563eb;
+.account-field-item label {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: 4px;
 }
 
-/* ================= PROFILE VIEW ================= */
-.profile-view .row {
-  display: flex;
-  justify-content: space-between;
-  margin: 15px 0;
-}
-
-.profile-view span {
-  color: #6b7280;
-  font-size: 14px;
-}
-
-.profile-view p {
-  font-weight: 500;
-}
-
-/* ================= FORMS ================= */
-.profile-form input,
-.address-form input {
-  width: 100%;
-  margin-top: 15px;
-  padding: 12px 15px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
+.account-field-item p {
   font-size: 15px;
-  transition: border 0.3s, box-shadow 0.3s;
-}
-
-.profile-form input:focus,
-.address-form input:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 8px rgba(59,130,246,0.3);
-}
-
-/* ================= BUTTONS ================= */
-.save-btn {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  padding: 10px 22px;
-  border-radius: 8px;
-  cursor: pointer;
   font-weight: 600;
-  transition: background 0.3s, transform 0.2s;
+  color: var(--text-primary);
+  margin: 0;
 }
 
-.save-btn:hover {
-  background: #2563eb;
-  transform: translateY(-2px);
+/* Address Cards Grid */
+.account-address-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
-.cancel-btn {
-  background: #e5e7eb;
-  color: #374151;
-  border: none;
-  padding: 10px 22px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background 0.3s, transform 0.2s;
-}
-
-.cancel-btn:hover {
-  background: #d1d5db;
-  transform: translateY(-2px);
-}
-
-.action-btns {
+.account-addr-card {
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  background: var(--bg-surface-elevated);
   display: flex;
-  gap: 15px;
-  margin-top: 20px;
-}
-
-/* ================= ADDRESS ================= */
-.address-box {
-  display: flex;
+  flex-direction: column;
   justify-content: space-between;
-  align-items: center;
-  border: 1px solid #e5e7eb;
-  padding: 15px 20px;
-  border-radius: 10px;
-  margin-top: 15px;
-  transition: box-shadow 0.3s;
 }
 
-.address-box:hover {
-  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+.account-addr-card h5 {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
 }
 
-.address-actions button {
-  background: #3b82f6;
-  color: #fff;
-  border: none;
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-left: 8px;
-  font-weight: 500;
-  transition: background 0.3s;
+.account-addr-card p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: 16px;
+  flex: 1;
 }
 
-.address-actions button:hover {
-  background: #2563eb;
+.addr-actions-row {
+  display: flex;
+  gap: 8px;
 }
 
-.no-address {
-  color: #6b7280;
-  font-style: italic;
-  margin-top: 10px;
-}
-
-.address-form {
-  margin-top: 25px;
-}
-
-.address-form h5 {
-  font-weight: 600;
-  margin-bottom: 15px;
-}
-
-/* ================= RESPONSIVE ================= */
-@media (max-width: 600px) {
-  .profile-view .row {
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .address-box {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .address-actions {
-    margin-top: 10px;
+@media (max-width: 768px) {
+  .account-profile-preview {
+    grid-template-columns: 1fr;
   }
 }

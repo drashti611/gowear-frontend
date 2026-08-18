@@ -1,7 +1,18 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  FaCheckCircle,
+  FaShieldAlt,
+  FaTruck,
+  FaGift,
+  FaStar,
+  FaEnvelope,
+  FaUser,
+  FaPhone,
+  FaMapMarkerAlt,
+} from "react-icons/fa";
 import API from "../api/axios";
-import "bootstrap/dist/css/bootstrap.min.css";
+import "../css/Register.css";
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -15,9 +26,11 @@ export default function Register() {
   const [verified, setVerified] = useState(false);
   const [states, setStates] = useState([]); // list of Indian states
   const [cities, setCities] = useState([]); // list of cities for selected state
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState({ text: "", type: "" });
   const navigate = useNavigate();
 
-  // ✅ Fetch all Indian states on component mount
+  // Fetch all Indian states on component mount
   useEffect(() => {
     fetch("https://countriesnow.space/api/v0.1/countries/states", {
       method: "POST",
@@ -32,13 +45,12 @@ export default function Register() {
       .catch((err) => console.error("Error fetching states:", err));
   }, []);
 
-  // ✅ Handle when state changes
+  // Handle state change
   const handleStateChange = (e) => {
     const selectedState = e.target.value;
     const updatedAddress = { ...form.address, state: selectedState, city: "" };
     setForm({ ...form, address: updatedAddress });
 
-    // Fetch cities for selected state
     fetch("https://countriesnow.space/api/v0.1/countries/state/cities", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -52,56 +64,66 @@ export default function Register() {
       .catch((err) => console.error("Error fetching cities:", err));
   };
 
-  // ✅ Handle when city changes
   const handleCityChange = (e) => {
     const updatedAddress = { ...form.address, city: e.target.value };
     setForm({ ...form, address: updatedAddress });
   };
 
-  // handle simple field change
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // handle other address fields (label, street, pincode)
   const handleAddressChange = (e) => {
     const { name, value } = e.target;
     const updatedAddress = { ...form.address, [name]: value };
     setForm({ ...form, address: updatedAddress });
   };
 
-  // send OTP
   const handleSendOtp = async () => {
-    if (!form.email) return alert("Enter your email first");
+    if (!form.email) {
+      setMessage({ text: "Please enter your email first.", type: "danger" });
+      return;
+    }
+    setLoading(true);
     try {
       const res = await API.post("/auth/verify-email", { email: form.email });
-      alert(res.data.message || "OTP sent to your email");
+      setMessage({ text: res.data.message || "OTP sent to your email!", type: "success" });
       setOtpSent(true);
     } catch (err) {
-      alert(err.response?.data?.message || "Failed to send OTP");
+      setMessage({ text: err.response?.data?.message || "Failed to send OTP", type: "danger" });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // verify OTP
   const handleVerifyOtp = async () => {
-    if (!otp) return alert("Enter the OTP first");
+    if (!otp) {
+      setMessage({ text: "Please enter the 6-digit OTP code.", type: "danger" });
+      return;
+    }
+    setLoading(true);
     try {
       const res = await API.post("/auth/verify-otp", {
         email: form.email,
         otp: otp,
       });
-      alert(res.data.message || "Email verified successfully!");
+      setMessage({ text: res.data.message || "Email verified successfully!", type: "success" });
       setVerified(true);
     } catch (err) {
-      alert(err.response?.data?.message || "Invalid OTP");
+      setMessage({ text: err.response?.data?.message || "Invalid OTP code", type: "danger" });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // register
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!verified) return alert("Please verify your email before registering");
+    if (!verified) {
+      setMessage({ text: "Please verify your email before registering.", type: "danger" });
+      return;
+    }
 
+    setLoading(true);
     try {
       const res = await API.post("/auth/register", {
         name: form.name,
@@ -109,185 +131,282 @@ export default function Register() {
         phone: form.phone,
         address: [form.address],
       });
-      alert(res.data.message || "Registered successfully!");
+      alert(res.data.message || "Account created successfully! Please log in.");
       navigate("/login");
     } catch (err) {
-      alert(err.response?.data?.message || "Registration failed");
+      setMessage({ text: err.response?.data?.message || "Registration failed.", type: "danger" });
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="container d-flex justify-content-center align-items-center vh-100">
-      <div className="card shadow-lg p-4" style={{ maxWidth: "450px", width: "100%" }}>
-        <h3 className="text-center mb-4">Register</h3>
-        <form onSubmit={handleRegister}>
-          {/* Email */}
-          <div className="mb-3">
-            <label className="form-label">Email</label>
-            <div className="input-group">
-              <input
-                name="email"
-                type="email"
-                className="form-control"
-                placeholder="Enter your email"
-                value={form.email}
-                onChange={handleChange}
-                required
-                disabled={verified}
-              />
-              {!verified && (
-                <button
-                  type="button"
-                  className="btn btn-outline-primary"
-                  onClick={handleSendOtp}
-                  disabled={otpSent}
-                >
-                  {otpSent ? "Sent" : "Send OTP"}
-                </button>
-              )}
+    <div className="auth-page-wrapper">
+      <div className="auth-split-card">
+        {/* Left Side: Brand & Benefits */}
+        <div className="auth-hero-side">
+          <div className="auth-hero-header">
+            <div className="auth-hero-badge">
+              <FaStar /> Luxury Fashion Collective
+            </div>
+            <h1 className="auth-hero-title">
+              Redefine Your <br />
+              <span className="gradient-text-accent" style={{ WebkitTextFillColor: "#fb7185" }}>
+                Style Statement.
+              </span>
+            </h1>
+            <p className="auth-hero-subtitle">
+              Join over 50,000+ fashion connoisseurs discovering curated designer apparel, exclusive seasonal drops, and personalized styles.
+            </p>
+          </div>
+
+          <div className="auth-features-list">
+            <div className="auth-feature-item">
+              <div className="auth-feature-icon">
+                <FaGift />
+              </div>
+              <div className="auth-feature-text">
+                <h5>Instant 15% Welcome Perk</h5>
+                <p>Enjoy exclusive discount on your premier order.</p>
+              </div>
+            </div>
+
+            <div className="auth-feature-item">
+              <div className="auth-feature-icon">
+                <FaTruck />
+              </div>
+              <div className="auth-feature-text">
+                <h5>Complimentary Express Shipping</h5>
+                <p>Fast track delivery right to your doorstep.</p>
+              </div>
+            </div>
+
+            <div className="auth-feature-item">
+              <div className="auth-feature-icon">
+                <FaShieldAlt />
+              </div>
+              <div className="auth-feature-text">
+                <h5>100% Authentic Quality</h5>
+                <p>Direct sourcing with 30-day hassle-free returns.</p>
+              </div>
             </div>
           </div>
 
-          {/* OTP */}
-          {otpSent && !verified && (
-            <div className="mb-3">
-              <label className="form-label">Enter OTP</label>
-              <div className="input-group">
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder="Enter OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  required
-                />
-                <button
-                  type="button"
-                  className="btn btn-outline-success"
-                  onClick={handleVerifyOtp}
-                >
-                  Verify
-                </button>
-              </div>
+          <div className="auth-hero-footer">
+            <span>© 2026 GoWear Fashion Hub. All rights reserved.</span>
+          </div>
+        </div>
+
+        {/* Right Side: Registration Form */}
+        <div className="auth-form-side">
+          <div className="auth-form-header">
+            <h2>Create Account</h2>
+            <p>Enter your details to create your GoWear profile</p>
+          </div>
+
+          {message.text && (
+            <div
+              className={`alert ${
+                message.type === "success" ? "alert-success" : "alert-danger"
+              } py-2 px-3 mb-3`}
+              style={{ fontSize: "13.5px", borderRadius: "10px" }}
+            >
+              {message.text}
             </div>
           )}
 
-          {/* Name */}
-          <div className="mb-3">
-            <label className="form-label">Full Name</label>
-            <input
-              name="name"
-              type="text"
-              className="form-control"
-              placeholder="Enter your full name"
-              value={form.name}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Phone */}
-          <div className="mb-3">
-            <label className="form-label">Phone</label>
-            <input
-              name="phone"
-              type="text"
-              className="form-control"
-              placeholder="Enter your phone number"
-              value={form.phone}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Address Section */}
-          <h5 className="mt-4 mb-2 text-secondary">Address Details</h5>
-          <div className="mb-2">
-            <label className="form-label">Label (e.g., Home/Work)</label>
-            <input
-              name="label"
-              type="text"
-              className="form-control"
-              placeholder="Home or Work"
-              value={form.address.label}
-              onChange={handleAddressChange}
-            />
-          </div>
-          <div className="mb-2">
-            <label className="form-label">Street</label>
-            <input
-              name="street"
-              type="text"
-              className="form-control"
-              placeholder="Street address"
-              value={form.address.street}
-              onChange={handleAddressChange}
-            />
-          </div>
-
-          {/* State & City Dropdowns */}
-          <div className="row">
-            <div className="col-md-6 mb-2">
-              <label className="form-label">State</label>
-              <select
-                name="state"
-                className="form-select"
-                value={form.address.state}
-                onChange={handleStateChange}
-              >
-                <option value="">Select State</option>
-                {Array.isArray(states) &&
-                  states.map((s, i) => (
-                    <option key={i} value={s.name}>
-                      {s.name}
-                    </option>
-                  ))}
-              </select>
+          <form onSubmit={handleRegister}>
+            {/* Email with OTP Action */}
+            <div className="luxury-input-group">
+              <label>
+                <FaEnvelope className="me-1" style={{ fontSize: "11px" }} /> Email Address
+              </label>
+              <div className="input-with-action">
+                <input
+                  name="email"
+                  type="email"
+                  className="luxury-input"
+                  placeholder="name@example.com"
+                  value={form.email}
+                  onChange={handleChange}
+                  required
+                  disabled={verified || loading}
+                />
+                {!verified ? (
+                  <button
+                    type="button"
+                    className="input-action-btn"
+                    onClick={handleSendOtp}
+                    disabled={otpSent || loading}
+                  >
+                    {otpSent ? "Code Sent" : "Send OTP"}
+                  </button>
+                ) : (
+                  <span className="verified-tag">
+                    <FaCheckCircle /> Verified
+                  </span>
+                )}
+              </div>
             </div>
 
-            <div className="col-md-6 mb-2">
-              <label className="form-label">City</label>
-              <select
-                name="city"
-                className="form-select"
-                value={form.address.city}
-                onChange={handleCityChange}
-                disabled={!cities.length}
-              >
-                <option value="">Select City</option>
-                {Array.isArray(cities) &&
-                  cities.map((c, i) => (
-                    <option key={i} value={c}>
-                      {c}
-                    </option>
-                  ))}
-              </select>
+            {/* OTP Input Section */}
+            {otpSent && !verified && (
+              <div className="otp-box-section">
+                <label className="d-block mb-1" style={{ fontSize: "12px", fontWeight: 700 }}>
+                  Enter Verification Code
+                </label>
+                <div className="input-with-action">
+                  <input
+                    type="text"
+                    className="luxury-input"
+                    placeholder="Enter 6-digit OTP"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    maxLength="6"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="input-action-btn"
+                    onClick={handleVerifyOtp}
+                    disabled={loading}
+                    style={{ background: "var(--accent-emerald)" }}
+                  >
+                    Verify Code
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Name & Phone */}
+            <div className="form-row">
+              <div className="luxury-input-group">
+                <label>
+                  <FaUser className="me-1" style={{ fontSize: "11px" }} /> Full Name
+                </label>
+                <input
+                  name="name"
+                  type="text"
+                  className="luxury-input"
+                  placeholder="Alex Morgan"
+                  value={form.name}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
+
+              <div className="luxury-input-group">
+                <label>
+                  <FaPhone className="me-1" style={{ fontSize: "11px" }} /> Mobile Number
+                </label>
+                <input
+                  name="phone"
+                  type="tel"
+                  className="luxury-input"
+                  placeholder="+91 98765 43210"
+                  value={form.phone}
+                  onChange={handleChange}
+                  required
+                />
+              </div>
             </div>
+
+            {/* Address Details */}
+            <div className="address-divider-title">
+              <FaMapMarkerAlt /> Shipping Address
+            </div>
+
+            <div className="form-row">
+              <div className="luxury-input-group">
+                <label>Address Label</label>
+                <input
+                  name="label"
+                  type="text"
+                  className="luxury-input"
+                  placeholder="Home, Office, etc."
+                  value={form.address.label}
+                  onChange={handleAddressChange}
+                />
+              </div>
+
+              <div className="luxury-input-group">
+                <label>Street / Flat / Landmark</label>
+                <input
+                  name="street"
+                  type="text"
+                  className="luxury-input"
+                  placeholder="123 Fashion Blvd, Apt 4B"
+                  value={form.address.street}
+                  onChange={handleAddressChange}
+                />
+              </div>
+            </div>
+
+            <div className="form-row">
+              <div className="luxury-input-group">
+                <label>State</label>
+                <select
+                  name="state"
+                  className="luxury-select"
+                  value={form.address.state}
+                  onChange={handleStateChange}
+                >
+                  <option value="">Select State</option>
+                  {Array.isArray(states) &&
+                    states.map((s, i) => (
+                      <option key={i} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="luxury-input-group">
+                <label>City</label>
+                <select
+                  name="city"
+                  className="luxury-select"
+                  value={form.address.city}
+                  onChange={handleCityChange}
+                  disabled={!cities.length}
+                >
+                  <option value="">Select City</option>
+                  {Array.isArray(cities) &&
+                    cities.map((c, i) => (
+                      <option key={i} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="luxury-input-group" style={{ maxWidth: "140px" }}>
+                <label>Pincode</label>
+                <input
+                  name="pincode"
+                  type="text"
+                  className="luxury-input"
+                  placeholder="400001"
+                  value={form.address.pincode}
+                  onChange={handleAddressChange}
+                  maxLength="6"
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              className="btn-luxury-primary auth-submit-btn"
+              disabled={!verified || loading}
+            >
+              {loading ? "Creating Account..." : "Create Account & Join"}
+            </button>
+          </form>
+
+          <div className="auth-footer-text">
+            Already have an account? <Link to="/login">Sign in here</Link>
           </div>
-
-          <div className="mb-3">
-            <label className="form-label">Pincode</label>
-            <input
-              name="pincode"
-              type="text"
-              className="form-control"
-              placeholder="Enter pincode"
-              value={form.address.pincode}
-              onChange={handleAddressChange}
-              maxLength="6"
-            />
-          </div>
-
-          {/* Register Button */}
-          <button type="submit" className="btn btn-success w-100" disabled={!verified}>
-            Register
-          </button>
-        </form>
-
-        <div className="text-center mt-3">
-          <p className="mb-0">
-            Already have an account? <Link to="/login">Login here</Link>
-          </p>
         </div>
       </div>
     </div>

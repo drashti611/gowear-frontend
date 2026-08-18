@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import API from "../../api/axios";
+import getImageUrl from "../../utils/imageUrl";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "../../css/AdminCss/AdminCategoryPage.css";
 import { FaEdit, FaTrash, FaTimes } from "react-icons/fa";
@@ -312,7 +313,7 @@ const fetchSubCategories = async () => {
                               style={{ textAlign: "center" }}
                             >
                               <img
-                                src={`http://localhost:5000/${imgPath}`}
+                                src={getImageUrl(imgPath)}
                                 alt={sub.name}
                                 style={{
                                   width: 50,
@@ -444,7 +445,7 @@ const fetchSubCategories = async () => {
                               }}
                             >
                               <img
-                                src={`http://localhost:5000/${existing.path}`}
+                                src={getImageUrl(existing.path)}
                                 alt={cat?.name}
                                 style={{
                                   width: 80,
